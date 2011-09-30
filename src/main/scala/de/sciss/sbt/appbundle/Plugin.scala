@@ -51,7 +51,10 @@ object Plugin extends sbt.Plugin {
       val versionedNamePattern   = "(.*?)[-_]\\d.*\\.jar".r // thanks to Don Mackenzie
       val jarFilter              = ClasspathUtilities.isArchive _
 
-      val oldFiles               = appBundleJavaDir.listFiles().toSeq.filter( jarFilter )
+      val oldFiles               = {
+         val f = appBundleJavaDir.listFiles()
+         if( f != null ) f.toSeq.filter( jarFilter ) else Seq.empty[ File ]   // fucking NPE
+      }
       oldFiles.foreach( f => log.info( "Removing " + f.getName ))
       IO.delete( oldFiles )
 
