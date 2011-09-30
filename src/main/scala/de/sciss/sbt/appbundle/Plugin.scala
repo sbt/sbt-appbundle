@@ -1,3 +1,28 @@
+/*
+ * Plugin.scala
+ * (sbt-appbundle)
+ *
+ * Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ *
+ *
+ * For further information, please contact Hanns Holger Rutz at
+ * contact@sciss.de
+ */
+
 package de.sciss.sbt.appbundle
 
 import sbt._
@@ -24,12 +49,13 @@ object Plugin extends sbt.Plugin {
       def appBundleContentsDir   = new File( appBundleName, "Contents" )
       def appBundleJavaDir       = new File( new File( appBundleContentsDir, "Resources" ), "Java" )
       val versionedNamePattern   = "(.*?)[-_]\\d.*\\.jar".r // thanks to Don Mackenzie
+      val jarFilter              = ClasspathUtilities.isArchive _
 
-      val oldFiles               = appBundleJavaDir.listFiles().toSeq
+      val oldFiles               = appBundleJavaDir.listFiles().toSeq.filter( jarFilter )
       oldFiles.foreach( f => log.info( "Removing " + f.getName ))
       IO.delete( oldFiles )
 
-      val newFiles               = classpath.map( _.data ).filter( ClasspathUtilities.isArchive )
+      val newFiles               = classpath.map( _.data ).filter( jarFilter )
 
       newFiles.foreach { inPath =>
          val vName = inPath.getName
@@ -48,7 +74,8 @@ object Plugin extends sbt.Plugin {
    }
 
    lazy val appbundleSettings: Seq[ Project.Setting[ _ ]] = Seq(
-      appbundle <<= (appbundleName in appbundle, fullClasspath in appbundle, streams) map { (name, classpath, s) =>
+      appbundle <<= (appbundleName in appbundle,
+                     fullClasspath in appbundle, streams) map { (name, classpath, s) =>
          appbundleTask( name, classpath, s.log )
       },
       fullClasspath in appbundle <<= fullClasspath orr (fullClasspath in Runtime)
