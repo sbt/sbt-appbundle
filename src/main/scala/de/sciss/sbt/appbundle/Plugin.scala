@@ -44,7 +44,7 @@ object Plugin extends sbt.Plugin {
 
    private val jarExt = ".jar"
 
-   private def appbundleTask( name: String, classpath: Classpath, log: Logger ) {
+   private def appbundleTask( name: String, jarFile: File, classpath: Classpath, log: Logger ) {
       def appBundleName          = name + ".app"
       def appBundleContentsDir   = new File( appBundleName, "Contents" )
       def appBundleJavaDir       = new File( new File( appBundleContentsDir, "Resources" ), "Java" )
@@ -55,7 +55,7 @@ object Plugin extends sbt.Plugin {
       oldFiles.foreach( f => log.info( "Removing " + f.getName ))
       IO.delete( oldFiles )
 
-      val newFiles               = classpath.map( _.data ).filter( jarFilter )
+      val newFiles               = classpath.map( _.data ).filter( jarFilter ) :+ jarFile
 
       newFiles.foreach { inPath =>
          val vName = inPath.getName
@@ -74,9 +74,9 @@ object Plugin extends sbt.Plugin {
    }
 
    lazy val appbundleSettings: Seq[ Project.Setting[ _ ]] = Seq(
-      appbundle <<= (appbundleName in appbundle,
-                     fullClasspath in appbundle, streams) map { (name, classpath, s) =>
-         appbundleTask( name, classpath, s.log )
+      appbundle <<= (appbundleName in appbundle, packageBin in Compile,
+                     fullClasspath in appbundle, streams) map { (name, file, classpath, s) =>
+         appbundleTask( name, file, classpath, s.log )
       },
       fullClasspath in appbundle <<= fullClasspath orr (fullClasspath in Runtime)
    )
