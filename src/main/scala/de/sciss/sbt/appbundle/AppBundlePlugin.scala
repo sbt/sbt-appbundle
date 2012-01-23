@@ -29,7 +29,7 @@ import sbt._
 import classpath.ClasspathUtilities
 import Keys._
 import Project.{Initialize, Setting}
-import java.io.File
+import java.io.{FileWriter, Writer, File}
 
 object AppBundlePlugin extends Plugin {
 //   val appbundle        = TaskKey[ Unit ]( "appbundle" )
@@ -63,6 +63,7 @@ object AppBundlePlugin extends Plugin {
 
       val appBundleDir           = new File( name + ".app" )
       val contentsDir            = appBundleDir / "Contents"
+      val infoPListFile          = contentsDir / "Info.plist"
       val resourcesDir           = contentsDir / "Resources"
       val javaDir                = resourcesDir / "Java"
       val macOSDir               = contentsDir / "MacOS"
@@ -81,7 +82,9 @@ object AppBundlePlugin extends Plugin {
 
       // ---- pkginfo ----
       if( !pkgInfoFile.exists() ) {
-         IO.write( pkgInfoFile, "APPL????".getBytes( "UTF-8" )) // 7-bit ascii anyway...
+         val bytes = (bundlePackageType + bundleSignature).getBytes( "UTF-8" )  // 7-bit ascii anyway...
+         require( bytes.length == 8 )
+         IO.write( pkgInfoFile, bytes )
       }
 
       // ---- java resources ----
@@ -112,16 +115,28 @@ object AppBundlePlugin extends Plugin {
 
       // ---- info.plist ----
 
+      val jEntries: PListDictEntries = Map(
+         JavaKey_MainClass    -> "de.sciss.testapp.TestApp"    // XXX
+      )
+
       val entries: PListDictEntries = Map(
-         CFBundleInfoDictionaryVersion -> "6.0",
+         CFBundleInfoDictionaryVersion -> PListVersion,
          CFBundleIdentifier            -> "de.sciss.testapp",  // XXX
          CFBundleName                  -> name,
-         CFBundlePackageType           -> "APPL",
+         CFBundlePackageType           -> bundlePackageType,
          CFBundleExecutable            -> appStubFile.getName,
          CFBundleShortVersionString    -> "1.2.3",  // XXX
          CFBundleSignature             -> "????",
-         CFBundleVersion               -> "1.2.3b345"
+         CFBundleVersion               -> "1.2.3b345",
+         BundleKey_Java                -> jEntries
       )
+
+      val w = new FileWriter( infoPListFile )
+      try {
+         PList( entries ).write( w )
+      } finally {
+         w.close()
+      }
 
       // required java entries
       // MainClass
@@ -188,11 +203,19 @@ object AppBundlePlugin extends Plugin {
    private val CFBundleShortVersionString       = "CFBundleShortVersionString"
    private val CFBundleSignature                = "CFBundleSignature"
    private val CFBundleVersion                  = "CFBundleVersion"
+   private val PListVersion                     = "6.0"
+   private val BundlePackageTypeAPPL            = "APPL"
+   private val BundleSignatureUnknown           = "????"
 
-   private val JavaClassPath                    = "ClassPath"
-   private val VarJavaRoot                      = "$JAVAROOT"
-   private val VarAppPackage                    = "$APP_PACKAGE"
-   private val VarUserHome                      = "$USER_HOME"
+   private def bundlePackageType = BundlePackageTypeAPPL
+   private def bundleSignature   = BundleSignatureUnknown
+
+   private val BundleKey_Java                   = "Java"
+   private val JavaKey_MainClass                = "MainClass"
+   private val JavaKey_ClassPath                = "ClassPath"
+   private val BundleVar_JavaRoot               = "$JAVAROOT"
+   private val BundleVar_AppPackage             = "$APP_PACKAGE"
+   private val BundleVar_UserHome               = "$USER_HOME"
 
    private final case class PList( dict: PListDict ) {
       def toXML =
@@ -202,12 +225,19 @@ object AppBundlePlugin extends Plugin {
 {dict.toXML}
 </plist>
 
+      def write( w: Writer ) {
+         xml.XML.write( w, node = toXML, enc = "UTF-8", xmlDecl = true, doctype = PListDocType )
+      }
    }
+
+   private lazy val PListDocType = xml.dtd.DocType( "plist", xml.dtd.PublicID( "-//Apple//DTD PLIST 1.0//EN",
+      "http://www.apple.com/DTDs/PropertyList-1.0.dtd"), Nil )
 
    private type PListDictEntries    = Map[ String, PListValue ]
    private type PListArrayEntries   = Seq[ PListValue ]
    private object PListValue {
       implicit def fromString( s: String ) : PListValue = PListString( s )
+      implicit def fromDict[ A <% PListDict ]( a: A ) : PListValue = a: PListDict
    }
    private sealed trait PListValue {
       def toXML : xml.Node
