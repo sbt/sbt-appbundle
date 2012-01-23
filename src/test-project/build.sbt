@@ -1,10 +1,10 @@
-name := "testapp"
+name := "TestApp"
 
 organization := "de.sciss"
 
-version := "0.10"
+version := "0.11-SNAPSHOT"
 
-seq(appbundleSettings: _*)
+seq(appbundle.settings: _*)
 
 libraryDependencies ++= Seq(
    "de.sciss" %% "scalaosc" % "0.30",
@@ -13,6 +13,6 @@ libraryDependencies ++= Seq(
 
 retrieveManaged := true
 
-appbundleName := "TestApp"
+// appbundle.name := "TestApplication"
 
 credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
