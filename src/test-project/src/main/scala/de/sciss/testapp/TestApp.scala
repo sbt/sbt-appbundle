@@ -31,3 +31,5 @@ object TestApp extends SimpleSwingApplication {
       open()
    }
 }
+
+//object Gaga extends App

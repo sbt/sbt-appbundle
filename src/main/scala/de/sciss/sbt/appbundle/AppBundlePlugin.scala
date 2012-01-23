@@ -30,6 +30,8 @@ import classpath.ClasspathUtilities
 import Keys._
 import Project.{Initialize, Setting}
 import java.io.{FileWriter, Writer, File}
+import collection.breakOut
+import sbt.Scoped.RichTaskable9
 
 object AppBundlePlugin extends Plugin {
 //   val appbundle        = TaskKey[ Unit ]( "appbundle" )
@@ -45,23 +47,59 @@ object AppBundlePlugin extends Plugin {
    private val jarExt = ".jar"
 
    object appbundle {
-      val Config        = config( "appbundle" )
-      val appbundle     = TaskKey[ Unit ]( "appbundle" )
-      val stub          = SettingKey[ File ]( "stub" ) in Config
-      val name          = Keys.name in Config
-      val fullClasspath = Keys.fullClasspath in Config
+      val Config           = config( "appbundle" )
+      val appbundle        = TaskKey[ Unit ]( "appbundle" )
+      val stub             = SettingKey[ File ]( "stub", "Path to the java application stub executable" ) in Config
+      val screenMenu       = SettingKey[ Boolean ]( "screenMenu", "Whether to display the menu bar in the screen top" ) in Config
+      val quartz           = SettingKey[ Option[ Boolean ]]( "quartz", "Whether to use the Apple Quartz renderer (true) or the default Java renderer" ) in Config
+      val systemProperties = SettingKey[ Map[ String, String ]]( "systemProperties", "A key-value map passed as Java -D arguments (system properties)" ) in Config
+      val javaVersion      = SettingKey[ String ]( "javaVersion", "Minimum Java version required to launch the application" ) in Config
+      val mainClass        = TaskKey[ Option[ String ]]( "mainClass", "The main class entry point into the application" ) in Config
+      val organization     = Keys.organization in Config
+      val normalizedName   = Keys.normalizedName in Config
+      val name             = Keys.name in Config
+      val version          = Keys.version in Config
+      val fullClasspath    = Keys.fullClasspath in Config
+      private val suckers  = SettingKey[ Helper ]( "_suckers" )
 
       val settings   = Seq[ Setting[ _ ]](
-         stub := new File( "/System/Library/Frameworks/JavaVM.framework/Versions/Current/Resources/MacOS/JavaApplicationStub" ),
-         fullClasspath <<= (Keys.fullClasspath in Compile) orr (Keys.fullClasspath in Runtime),
-         appbundle <<= (name, stub, packageBin in Compile, fullClasspath, streams) map appbundleTask
+         stub             := file( "/System/Library/Frameworks/JavaVM.framework/Versions/Current/Resources/MacOS/JavaApplicationStub" ),
+         fullClasspath   <<= (Keys.fullClasspath in Compile) orr (Keys.fullClasspath in Runtime),
+         mainClass       <<= mainClass orr (selectMainClass in Runtime),
+         screenMenu       := true,
+         quartz           := None,
+         javaVersion      := "1.6+",
+         systemProperties <<= (Keys.javaOptions in Runtime, screenMenu, quartz) { (seq, _screenMenu, _quartz) =>
+            val m0: Map[ String, String ] = seq.collect({ case JavaDOption( key, value ) => (key, value) })( breakOut )
+            val m1 = m0 + ("apple.laf.useScreenMenuBar" -> _screenMenu.toString)
+            val m2 = _quartz match {
+               case Some( value ) => m1 + ("apple.awt.graphics.UseQuartz" -> value.toString)
+               case _ => m1
+            }
+            m2
+         },
+         suckers <<= (organization, normalizedName, name, version, /* mainClass, */ javaVersion) apply Helper.apply,
+//         appbundle <<= (organization, normalizedName, name, version, stub, systemProperties, /* javaVersion, */ /* mainClass, */
+//                        packageBin in Compile, fullClasspath, streams) map appbundleTask
+         appbundle <<= (suckers, mainClass, stub, systemProperties, packageBin in Compile, fullClasspath, streams) map appbundleTask
       )
+
+      final case class Helper( organization: String, normalizedName: String, name: String, version: String,
+                               /* mainClassOption: Option[ String ], */ javaVersion: String )
    }
 
-   private def appbundleTask( name: String, stub: File, jarFile: File, classpath: Classpath, streams: TaskStreams ) {
-      import streams.log
 
-      val appBundleDir           = new File( name + ".app" )
+   private def appbundleTask( suckers: appbundle.Helper, mainClassOption: Option[ String ], stub: File,
+                              systemProperties: Map[ String, String ], jarFile: File,
+                              classpath: Classpath, streams: TaskStreams ) {
+      import streams.log
+      import suckers._
+
+      val mainClass              = mainClassOption.getOrElse( "Main class undefined" )
+
+      val appBundleDir           = file( name + ".app" )
+      log.info( "Bundling " + appBundleDir )
+
       val contentsDir            = appBundleDir / "Contents"
       val infoPListFile          = contentsDir / "Info.plist"
       val resourcesDir           = contentsDir / "Resources"
@@ -95,40 +133,58 @@ object AppBundlePlugin extends Plugin {
          val f = javaDir.listFiles()
          if( f != null ) f.toSeq.filter( jarFilter ) else Seq.empty[ File ]   // fucking NPE
       }
-      oldFiles.foreach( f => log.info( "Removing " + f.getName ))
+      oldFiles.foreach( f => log.verbose( "Removing " + f.getName ))
       IO.delete( oldFiles )
 
       val newFiles = classpath.map( _.data ).filter( jarFilter ) :+ jarFile
 
-      newFiles.foreach { inPath =>
+      val copyFiles = newFiles.flatMap { inPath =>
          val vName = inPath.getName
          if( !vName.contains( "-javadoc" ) && !vName.contains( "-sources" )) {
             val plainName = vName match {
                case versionedNamePattern( n ) if( n != "scala" ) => n + jarExt
                case n => n
             }
-            val outPath = new File( javaDir, plainName )
-            log.info( "Copying to file " + outPath )
-            IO.copyFile( inPath, outPath, true )
-         }
+            val outPath = javaDir / plainName
+//            log.verbose( "Copying to file " + outPath )
+//            IO.copyFile( inPath, outPath, true )
+            Some( (inPath, outPath) )
+         } else None
       }
+
+      copyFiles.foreach { case (inPath, outPath) =>
+         log.verbose( "Copying to file " + outPath )
+         IO.copyFile( inPath, outPath, true )
+      }
+
+      val outFiles = copyFiles.map( _._2 )
 
       // ---- info.plist ----
 
+      val javaRootFile     = file( BundleVar_JavaRoot )
+      val bundleClassPath  = outFiles.map( javaRootFile / _.name )
+
       val jEntries: PListDictEntries = Map(
-         JavaKey_MainClass    -> "de.sciss.testapp.TestApp"    // XXX
+         JavaKey_MainClass    -> mainClass,
+         JavaKey_Properties   -> systemProperties,
+         JavaKey_ClassPath    -> PListValue.fromArray( bundleClassPath.map( _.toString )), // XXX why doesn't the implicit work?
+         JavaKey_JVMVersion   -> javaVersion
       )
 
+      val iterVersion   = version  // XXX TODO: append incremental build number
+      val bundleID      = organization + "." + normalizedName
+
       val entries: PListDictEntries = Map(
-         CFBundleInfoDictionaryVersion -> PListVersion,
-         CFBundleIdentifier            -> "de.sciss.testapp",  // XXX
-         CFBundleName                  -> name,
-         CFBundlePackageType           -> bundlePackageType,
-         CFBundleExecutable            -> appStubFile.getName,
-         CFBundleShortVersionString    -> "1.2.3",  // XXX
-         CFBundleSignature             -> "????",
-         CFBundleVersion               -> "1.2.3b345",
-         BundleKey_Java                -> jEntries
+         CFBundleInfoDictionaryVersion    -> PListVersion,
+         CFBundleIdentifier               -> bundleID,
+         CFBundleName                     -> name,
+         CFBundlePackageType              -> bundlePackageType,
+         CFBundleExecutable               -> appStubFile.getName,
+         CFBundleShortVersionString       -> version,
+         CFBundleSignature                -> bundleSignature,
+         CFBundleVersion                  -> iterVersion,
+         CFBundleAllowMixedLocalizations  -> true.toString,
+         BundleKey_Java                   -> jEntries
       )
 
       val w = new FileWriter( infoPListFile )
@@ -137,6 +193,8 @@ object AppBundlePlugin extends Plugin {
       } finally {
          w.close()
       }
+
+      log.info( "Done bundling." )
 
       // required java entries
       // MainClass
@@ -185,13 +243,31 @@ object AppBundlePlugin extends Plugin {
       // CFBundleURLTypes
    }
 
-//   lazy val appbundleSettings: Seq[ Project.Setting[ _ ]] = Seq(
-//      appbundle <<= (appbundleName in appbundle, packageBin in Compile,
-//                     fullClasspath in appbundle, streams) map { (name, file, classpath, s) =>
-//         appbundleTask( name, file, classpath, s.log )
-//      },
-//      fullClasspath in appbundle <<= fullClasspath orr (fullClasspath in Runtime)
-//   )
+   // apple.laf.useScreenMenuBar (default false)
+   // apple.awt.brushMetalLook (default false)
+   // apple.awt.fileDialogForDirectories (default false)
+   // apple.awt.UIElement (default false)
+
+   // apple.awt.fakefullscreen (default false)
+   // apple.awt.fullscreencapturealldisplays (false)
+   // apple.awt.fullscreenhidecursor (default true)
+   // apple.awt.fullscreenusefade (default false)
+
+   // apple.awt.antialiasing (default on? for aqua)
+   // apple.awt.textantialiasing (default on? for aqua)
+   // apple.awt.rendering = speed | quality
+   // apple.awt.interpolation
+   // apple.awt.fractionalmetrics
+
+   // apple.awt.graphics.OptimizeShapes
+   // apple.awt.graphics.EnableLazyDrawing
+   // apple.awt.graphics.EnableLazyDrawingQueueSize
+   // apple.awt.graphics.EnableQ2DX
+   // apple.awt.graphics.EnableDeferredUpdates
+
+   // apple.awt.graphics.UseQuartz (default true for Java 1.5, false for Java 1.6)
+
+   // apple.awt.graphics.EnableLazyPixelConversion
 
    private val CFBundleInfoDictionaryVersion    = "CFBundleInfoDictionaryVersion"
    private val CFBundleName                     = "CFBundleName"
@@ -212,10 +288,14 @@ object AppBundlePlugin extends Plugin {
 
    private val BundleKey_Java                   = "Java"
    private val JavaKey_MainClass                = "MainClass"
+   private val JavaKey_Properties               = "Properties"
    private val JavaKey_ClassPath                = "ClassPath"
+   private val JavaKey_JVMVersion               = "JVMVersion"
    private val BundleVar_JavaRoot               = "$JAVAROOT"
    private val BundleVar_AppPackage             = "$APP_PACKAGE"
    private val BundleVar_UserHome               = "$USER_HOME"
+
+   private lazy val JavaDOption  = "-D(.*?)=(.*?)".r
 
    private final case class PList( dict: PListDict ) {
       def toXML =
@@ -235,7 +315,10 @@ object AppBundlePlugin extends Plugin {
 
    private type PListDictEntries    = Map[ String, PListValue ]
    private type PListArrayEntries   = Seq[ PListValue ]
-   private object PListValue {
+   private trait PListValueLow {
+      implicit def fromArray[ A <% PListArray ]( a: A ) : PListValue = a: PListArray
+   }
+   private object PListValue extends PListValueLow {
       implicit def fromString( s: String ) : PListValue = PListString( s )
       implicit def fromDict[ A <% PListDict ]( a: A ) : PListValue = a: PListDict
    }
@@ -246,15 +329,33 @@ object AppBundlePlugin extends Plugin {
       def toXML = <string>{value}</string>
    }
    private object PListDict {
-      implicit def fromMap( map: PListDictEntries ) : PListDict = PListDict( map )
+      implicit def fromValueMap( map: PListDictEntries ) : PListDict = PListDict( map )
+      implicit def fromStringMap( map: Map[ String, String ]) : PListDict = PListDict( map.mapValues( PListString( _ )))
    }
    private final case class PListDict( map: PListDictEntries ) extends PListValue {
       def toXML = <dict>{map.map { case (key, value) => <key>{key}</key> ++ value.toXML }}</dict>
    }
    private object PListArray {
-      implicit def fromSeq( seq: PListArrayEntries ) : PListArray = PListArray( seq )
+      implicit def fromValueSeq( seq: PListArrayEntries ) : PListArray = PListArray( seq )
+      implicit def fromStringSeq( seq: Seq[ String ]) : PListArray = PListArray( seq.map( PListString( _ )))
    }
    private final case class PListArray( seq: PListArrayEntries ) extends PListValue {
       def toXML = <array>{seq.map( _.toXML )}</array>
    }
+
+   // Sssssssssssscukers
+
+//   implicit private def t10ToTable10[A,B,C,D,E,F,G,H,I, J](t10: (ScopedTaskable[A], ScopedTaskable[B], ScopedTaskable[C],
+//      ScopedTaskable[D], ScopedTaskable[E], ScopedTaskable[F], ScopedTaskable[G], ScopedTaskable[H],
+//      ScopedTaskable[I], ScopedTaskable[J]) ): RichTaskable9[A,B,C,D,E,F,G,H,I] = new RichTaskable10(t10)
+//
+//   private final class RichTaskable10[A,B,C,D,E,F,G,H,I,J](t10: (ScopedTaskable[A], ScopedTaskable[B], ScopedTaskable[C],
+//      ScopedTaskable[D], ScopedTaskable[E], ScopedTaskable[F], ScopedTaskable[G], ScopedTaskable[H],
+//      ScopedTaskable[I], ScopedTaskable[J])) extends RichTaskables(k10(t10))
+//  	{
+//  		type Fun[M[_],Ret] = (M[A],M[B],M[C],M[D],M[E],M[F],M[G],M[H],M[I]) => Ret
+//  		def identityMap = map(mkTuple9)
+//  		protected def convertH[R](z: Fun[Id,R]) = hf9(z)
+//  		protected def convertK[M[_],R](z: Fun[M,R]) = { case a :^: b :^: c :^: d :^: e :^: f :^: g :^: h :^: i :^: KNil => z(a,b,c,d,e,f,g,h,i) }
+//  	}
 }
