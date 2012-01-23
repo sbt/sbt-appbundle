@@ -2,6 +2,7 @@ target/
 lib_managed/
 src_managed/
 project/boot/
-.idea/workspace.xml
+.idea/
+.idea_modules/
 src/test-project/target/
 src/test-project/project/boot/
