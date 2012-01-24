@@ -25,6 +25,7 @@ And can then configure the `appbundle` task. Without any additional configuratio
  - `mainClass` : `TaskKey[Option[String]]` &ndash; Main class entry when application is launched. Appbundle fails when this is not specified or inferred. (defaults to `mainClass` in main scope)
  - `stub` : `SettingKey[File]` &ndash; Path to the java application stub executable. (defaults to `file( "/System/Library/Frameworks/JavaVM.framework/Versions/Current/Resources/MacOS/JavaApplicationStub" )`)
  - `fullClasspath` : `TaskKey[Classpath]` &ndash; Constructed from the `fullClasspath` entries in `Compile` and `Runtime`.
+ - `javaVersion` : `SettingKey[String]` &ndash; The minimum Java version required to launch the application. (defaults to `1.6+`)
  - `javaOptions` : `SettingKey[Seq[String]]` &ndash; Options passed to the `java` command when launching the application. (defaults to `javaOptions` in main scope)
  - `systemProperties` : `SettingKey[Seq[(String, String)]]` &ndash; A key-value map passed as Java `-D` arguments (system properties). (by default extracts `-D` entries from `javaOptions` and adds entries for `screenMenu` and `quartz`)
  - `screenMenu` : `SettingKey[Boolean]` &ndash; Whether to display the menu bar in the screen top. (defaults to `true`)
@@ -37,7 +38,13 @@ Example:
     appbundle.javaOptions += "-Xmx1024m"
     appbundle.javaOptions ++= Seq( "-ea" )
     appbundle.systemProperties += "SC_HOME" -> "../scsynth"
-    appbundle.icon = file( "myicon.png" )
+    appbundle.icon = Some( file( "myicon.png" ))
+
+Table test
+
+|one  | two|three|
+|-----|----|-----|
+|alpha|beta|gamma|
 
 ### credits
 
