@@ -18,19 +18,21 @@ You can find an example of its usage in `src/test-project`. Basically you add th
 
 And can then configure the `appbundle` task. Without any additional configuration, the task will create the app bundle in the base directory under the name `project-name.app`. The following keys are available:
 
- - `name` : `SettingKey[String]` &ndash; Name for the bundle, without the .app extension. (defaults to `name` in main scope)
- - `normalizedName` : `SettingKey[String]` &ndash; Lower case namem used as second part in the bundle identifier. (defaults to `normalizedName` in main scope)
- - `organization` : `SettingKey[String]` &ndash; Your publishing domain (reverse website style), used as first part in the bundle identifier. (defaults to `organization` in main scope)
- - `version` : `SettingKey[String]` &ndash; Version string which is shown in the Finder and About menu. (defaults to `version` in main scope)
- - `mainClass` : `TaskKey[Option[String]]` &ndash; Main class entry when application is launched. Appbundle fails when this is not specified or inferred. (defaults to `mainClass` in main scope)
- - `stub` : `SettingKey[File]` &ndash; Path to the java application stub executable. (defaults to `file( "/System/Library/Frameworks/JavaVM.framework/Versions/Current/Resources/MacOS/JavaApplicationStub" )`)
- - `fullClasspath` : `TaskKey[Classpath]` &ndash; Constructed from the `fullClasspath` entries in `Compile` and `Runtime`.
- - `javaVersion` : `SettingKey[String]` &ndash; The minimum Java version required to launch the application. (defaults to `1.6+`)
- - `javaOptions` : `SettingKey[Seq[String]]` &ndash; Options passed to the `java` command when launching the application. (defaults to `javaOptions` in main scope)
- - `systemProperties` : `SettingKey[Seq[(String, String)]]` &ndash; A key-value map passed as Java `-D` arguments (system properties). (by default extracts `-D` entries from `javaOptions` and adds entries for `screenMenu` and `quartz`)
- - `screenMenu` : `SettingKey[Boolean]` &ndash; Whether to display the menu bar in the screen top. (defaults to `true`)
- - `quartz` : `SettingKey[Option[Boolean]]` &ndash; Whether to use the Apple Quartz renderer (true) or the default Java renderer. (Defaults to `None`. In this case Quartz is used for Java 1.5, but not for Java 1.6+)
- - `icon` : `SettingKey[ Option[ File ]]` &ndash; Image or icon file which is used as application icon. A native `.icns` file will be copied unmodified to the bundle, while an image (such as `.png`) will be converted through the OS X shell utility `sips`, scaling down the image to the next supported size, which is either of 16, 32, 48, 128, 256, or 512 pixels width/height. (defaults to `None`)
+|**name**          |**key-type**           |**description**             |**default**|
+|------------------|-----------------------|----------------------------|-----------|
+|`name`            |`String`               |Name for the bundle, without the .app extension | `name` in main scope |
+|`normalizedName`  |`String`               |Lower case namem used as second part in the bundle identifier | `normalizedName` in main scope |
+|`organization`    |`String`               |Your publishing domain (reverse website style), used as first part in the bundle identifier | `organization` in main scope |
+|`version`         |`String                |Version string which is shown in the Finder and About menu | `version` in main scope |
+|`mainClass`       |`Option[String]`       |Main class entry when application is launched. Appbundle fails when this is not specified or inferred | `mainClass` in main scope |
+|`stub`            |`File`                 |Path to the java application stub executable. | `/System/Library/Frameworks/JavaVM.framework/Versions/Current/Resources/MacOS/JavaApplicationStub` |
+|`fullClasspath`   |`Classpath`            |Constructed from the `fullClasspath` entries in `Compile` and `Runtime` | |
+|`javaVersion`     |`String`               |The minimum Java version required to launch the application | `1.6+` |
+|`javaOptions`     |`Seq[String]`          |Options passed to the `java` command when launching the application | `javaOptions` in main scope |
+|`systemProperties`|`Seq[(String, String)]`|A key-value map passed as Java `-D` arguments (system properties) | extracts `-D` entries from `javaOptions` and adds entries for `screenMenu` and `quartz` |
+|`screenMenu`      |`Boolean`              |Whether to display the menu bar in the screen top | `true`
+|`quartz`          |`Option[Boolean]`      |Whether to use the Apple Quartz renderer (`true`) or the default Java renderer | `None`. In this case Quartz is used for Java 1.5, but not for Java 1.6+ |
+|`icon`            |`Option[File]`         |Image or icon file which is used as application icon. A native `.icns` file will be copied unmodified to the bundle, while an image (such as `.png`) will be converted through the OS X shell utility `sips`, scaling down the image to the next supported size, which is either of 16, 32, 48, 128, 256, or 512 pixels width/height | `None` |
 
 Example:
 
@@ -39,12 +41,6 @@ Example:
     appbundle.javaOptions ++= Seq( "-ea" )
     appbundle.systemProperties += "SC_HOME" -> "../scsynth"
     appbundle.icon = Some( file( "myicon.png" ))
-
-Table test
-
-|one  | two|three|
-|-----|----|-----|
-|alpha|beta|gamma|
 
 ### credits
 
