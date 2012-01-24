@@ -14,13 +14,35 @@ homepage := Some( url( "https://github.com/Sciss/sbt-appbundle" ))
 
 licenses := Seq( "LGPL v2.1+" -> url( "http://www.gnu.org/licenses/lgpl-2.1.txt" ))
 
-publishMavenStyle := true
+// the following was true for scala-tools.org
+//
+// publishMavenStyle := true
+//
+//publishTo <<= version { (v: String) =>
+//   Some( "Scala Tools Nexus" at "http://nexus.scala-tools.org/content/repositories/".+(
+//      if( v.endsWith( "-SNAPSHOT")) "snapshots/" else "releases/"
+//   ))
+//}
+//
+// credentials += Credentials( Path.userHome / ".ivy2" / ".credentials" )
+
+// the following is valid for scalasbt.artifactoryonline.com
 
 publishTo <<= version { (v: String) =>
-   Some( "Scala Tools Nexus" at "http://nexus.scala-tools.org/content/repositories/".+(
-      if( v.endsWith( "-SNAPSHOT")) "snapshots/" else "releases/"
-   ))
+   Some( if( v.endsWith( "-SNAPSHOT")) {
+      Resolver.url( "sbt-plugin-snapshots",
+         url( "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-snapshots/" )
+      )( Resolver.ivyStylePatterns )
+   } else {
+      Resolver.url( "sbt-plugin-releases",
+         url( "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-releases/" )
+      )( Resolver.ivyStylePatterns )
+   })
 }
+
+publishMavenStyle := false
+
+credentials += Credentials( Path.userHome / ".ivy2" / ".sbtcredentials" )
 
 pomExtra :=
 <licenses>
@@ -31,7 +53,6 @@ pomExtra :=
   </license>
 </licenses>
 
-credentials += Credentials( Path.userHome / ".ivy2" / ".credentials" )
 
 publishArtifact in (Compile, packageDoc) := false
 
