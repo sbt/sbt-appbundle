@@ -25,7 +25,7 @@ And can then configure the `appbundle` task. Without any additional configuratio
 |`organization`    |`String`               |Your publishing domain (reverse website style), used as first part in the bundle identifier | `organization` in main scope |
 |`version`         |`String                |Version string which is shown in the Finder and About menu | `version` in main scope |
 |`mainClass`       |`Option[String]`       |Main class entry when application is launched. Appbundle fails when this is not specified or inferred | `mainClass` in main scope |
-|`stub`            |`File`                 |Path to the java application stub executable. | `/System/Library/Frameworks/JavaVM.framework/Versions/Current/Resources/MacOS/JavaApplicationStub` |
+|`stub`            |`File`                 |Path to the java application stub executable. | /System/ Library/ Frameworks/ JavaVM.framework/ Versions/ Current/ Resources/ MacOS/ JavaApplicationStub |
 |`fullClasspath`   |`Classpath`            |Constructed from the `fullClasspath` entries in `Compile` and `Runtime` | |
 |`javaVersion`     |`String`               |The minimum Java version required to launch the application | `1.6+` |
 |`javaOptions`     |`Seq[String]`          |Options passed to the `java` command when launching the application | `javaOptions` in main scope |
