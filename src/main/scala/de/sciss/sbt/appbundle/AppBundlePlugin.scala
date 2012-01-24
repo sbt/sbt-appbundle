@@ -52,14 +52,17 @@ object AppBundlePlugin extends Plugin {
       val stub             = SettingKey[ File ]( "stub", "Path to the java application stub executable" ) in Config
       val screenMenu       = SettingKey[ Boolean ]( "screenMenu", "Whether to display the menu bar in the screen top" ) in Config
       val quartz           = SettingKey[ Option[ Boolean ]]( "quartz", "Whether to use the Apple Quartz renderer (true) or the default Java renderer" ) in Config
-      val systemProperties = SettingKey[ Map[ String, String ]]( "systemProperties", "A key-value map passed as Java -D arguments (system properties)" ) in Config
+//      val systemProperties = SettingKey[ Map[ String, String ]]( "systemProperties", "A key-value map passed as Java -D arguments (system properties)" ) in Config
+      val systemProperties = SettingKey[ Seq[ (String, String) ]]( "systemProperties", "A key-value map passed as Java -D arguments (system properties)" ) in Config
       val javaVersion      = SettingKey[ String ]( "javaVersion", "Minimum Java version required to launch the application" ) in Config
       val mainClass        = TaskKey[ Option[ String ]]( "mainClass", "The main class entry point into the application" ) in Config
+      val icon             = SettingKey[ Option[ File ]]( "icon", "Image file (.png or .icns) which is used as application icon" ) in Config
       val organization     = Keys.organization in Config
       val normalizedName   = Keys.normalizedName in Config
       val name             = Keys.name in Config
       val version          = Keys.version in Config
       val fullClasspath    = Keys.fullClasspath in Config
+      val javaOptions      = Keys.javaOptions in Config
       private val suckers  = SettingKey[ Helper ]( "_suckers" )
 
       val settings   = Seq[ Setting[ _ ]](
@@ -68,20 +71,24 @@ object AppBundlePlugin extends Plugin {
          mainClass       <<= mainClass orr (selectMainClass in Runtime),
          screenMenu       := true,
          quartz           := None,
+         icon             := None,
          javaVersion      := "1.6+",
-         systemProperties <<= (Keys.javaOptions in Runtime, screenMenu, quartz) { (seq, _screenMenu, _quartz) =>
+         javaOptions     <<= Keys.javaOptions in Runtime,
+         systemProperties <<= (javaOptions, screenMenu, quartz) { (seq, _screenMenu, _quartz) =>
             val m0: Map[ String, String ] = seq.collect({ case JavaDOption( key, value ) => (key, value) })( breakOut )
             val m1 = m0 + ("apple.laf.useScreenMenuBar" -> _screenMenu.toString)
             val m2 = _quartz match {
                case Some( value ) => m1 + ("apple.awt.graphics.UseQuartz" -> value.toString)
                case _ => m1
             }
-            m2
+//            m2
+            m2.toSeq
          },
          suckers <<= (organization, normalizedName, name, version, /* mainClass, */ javaVersion) apply Helper.apply,
 //         appbundle <<= (organization, normalizedName, name, version, stub, systemProperties, /* javaVersion, */ /* mainClass, */
 //                        packageBin in Compile, fullClasspath, streams) map appbundleTask
-         appbundle <<= (suckers, mainClass, stub, systemProperties, packageBin in Compile, fullClasspath, streams) map appbundleTask
+         appbundle <<= (suckers, mainClass, stub, icon, systemProperties, javaOptions, packageBin in Compile,
+            fullClasspath, streams) map appbundleTask
       )
 
       final case class Helper( organization: String, normalizedName: String, name: String, version: String,
@@ -90,7 +97,8 @@ object AppBundlePlugin extends Plugin {
 
 
    private def appbundleTask( suckers: appbundle.Helper, mainClassOption: Option[ String ], stub: File,
-                              systemProperties: Map[ String, String ], jarFile: File,
+                              iconOption: Option[ File ],
+                              systemProperties: Seq[ (String, String) ], /* Map[ String, String ], */ javaOption: Seq[ String ], jarFile: File,
                               classpath: Classpath, streams: TaskStreams ) {
       import streams.log
       import suckers._
@@ -104,6 +112,7 @@ object AppBundlePlugin extends Plugin {
       val infoPListFile          = contentsDir / "Info.plist"
       val resourcesDir           = contentsDir / "Resources"
       val javaDir                = resourcesDir / "Java"
+      val iconFile               = resourcesDir / "application.icns"
       val macOSDir               = contentsDir / "MacOS"
       val appStubFile            = macOSDir / "JavaApplicationStub"
       val pkgInfoFile            = contentsDir / "PkgInfo"
@@ -126,7 +135,6 @@ object AppBundlePlugin extends Plugin {
       }
 
       // ---- java resources ----
-
       if( !javaDir.exists() ) javaDir.mkdirs()
 
       val oldFiles = {
@@ -159,22 +167,51 @@ object AppBundlePlugin extends Plugin {
 
       val outFiles = copyFiles.map( _._2 )
 
-      // ---- info.plist ----
+      // ---- icon ----
+      iconOption.foreach { imageFile =>
+         if( imageFile.ext == "icns" ) {
+            IO.copyFile( imageFile, iconFile, true )
+         } else {
+            import sys.process._
+            val lines         = Seq( "sips", "-g", "pixelHeight", "-g", "pixelWidth", imageFile.getPath ).lines
+            val PixelWidth    = "\\s+pixelWidth: (\\d+)".r
+            val PixelHeight   = "\\s+pixelHeight: (\\d+)".r
+            val srcWidth      = lines.collect({ case PixelWidth(  s ) => s.toInt }).head
+            val srcHeight     = lines.collect({ case PixelHeight( s ) => s.toInt }).head
+            val supported     = IndexedSeq( 16, 32, 48, 128, 256, 512 )
+            val srcSize       = math.min( 512, math.max( srcWidth, srcHeight ))
+            val tgtSize       = supported( supported.indexWhere( _ >= srcSize ))
+            val args0         = Seq( imageFile.getPath, "--out", iconFile.getPath )
+            val args1         = if( tgtSize != srcWidth || tgtSize != srcHeight ) {
+               Seq( "-z", tgtSize.toString, tgtSize.toString )
+            } else {
+               Seq.empty
+            }
+            val args          = Seq( "sips", "-s", "format", "icns" ) ++ args1 ++ args0
+            args.!!
+         }
+      }
 
+      // ---- info.plist ----
       val javaRootFile     = file( BundleVar_JavaRoot )
       val bundleClassPath  = outFiles.map( javaRootFile / _.name )
+      val vmOptions        = javaOption.filterNot {
+         case JavaDOption( _, _ ) => true
+         case _ => false
+      }
 
       val jEntries: PListDictEntries = Map(
          JavaKey_MainClass    -> mainClass,
-         JavaKey_Properties   -> systemProperties,
+         JavaKey_Properties   -> systemProperties.toMap[ String, String ],
          JavaKey_ClassPath    -> PListValue.fromArray( bundleClassPath.map( _.toString )), // XXX why doesn't the implicit work?
-         JavaKey_JVMVersion   -> javaVersion
+         JavaKey_JVMVersion   -> javaVersion,
+         JavaKey_VMOptions    -> PListValue.fromArray( vmOptions ) // XXX why doesn't the implicit work?
       )
 
       val iterVersion   = version  // XXX TODO: append incremental build number
       val bundleID      = organization + "." + normalizedName
 
-      val entries: PListDictEntries = Map(
+      val entries0 = Map[ String, PListValue ](
          CFBundleInfoDictionaryVersion    -> PListVersion,
          CFBundleIdentifier               -> bundleID,
          CFBundleName                     -> name,
@@ -187,6 +224,10 @@ object AppBundlePlugin extends Plugin {
          BundleKey_Java                   -> jEntries
       )
 
+      val entries: PListDictEntries = if( iconOption.isDefined ) {
+         entries0 + (CFBundleIconFile -> iconFile.name)
+      } else entries0
+
       val w = new FileWriter( infoPListFile )
       try {
          PList( entries ).write( w )
@@ -196,23 +237,9 @@ object AppBundlePlugin extends Plugin {
 
       log.info( "Done bundling." )
 
-      // required java entries
-      // MainClass
-      //
-      // recommended
-      // JVMVersion
-
-      // ClassPath (default: $APP_PACKAGE)
-      // (+ architecture specific)
-
       // WorkingDirectory (default: $APP_PACKAGE)
 
       // Arguments (A string or array of strings)
-
-      // Properties (a dict; aka java -D; e.g. key=apple.laf.useScreenMenuBar, value=true)
-
-      // VMOptions (e.g. -Xms512m, -Xdock:icon=pathToIconFile)
-      // (+ architecture specific)
 
       // Variables: $JAVAROOT, $APP_PACKAGE, $USER_HOME
 
@@ -228,13 +255,9 @@ object AppBundlePlugin extends Plugin {
       // timingFormat
       // version
 
-      // eventually we could generate `Info.plist`, e.g. using `plutil -convert`
-
-      // CFBundleAllowMixedLocalizations --> true
       // CFBundleDevelopmentRegion --> (Recommended), e.g. English
       // CFBundleDisplayName --> "If you do not intend to localize your bundle, do not include this key in your Info.plist file."
       // CFBundleDocumentTypes --> would be nice to support this eventually
-      // CFBundleExecutable --> required I guess
       // CFAppleHelpAnchor
       // CFBundleIconFile --> Mac OS X; "The filename you specify does not need to include the extension, although it may.
       // The system looks for the icon file in the main resources directory of the bundle."
@@ -291,6 +314,8 @@ object AppBundlePlugin extends Plugin {
    private val JavaKey_Properties               = "Properties"
    private val JavaKey_ClassPath                = "ClassPath"
    private val JavaKey_JVMVersion               = "JVMVersion"
+   private val JavaKey_VMOptions                = "VMOptions"
+
    private val BundleVar_JavaRoot               = "$JAVAROOT"
    private val BundleVar_AppPackage             = "$APP_PACKAGE"
    private val BundleVar_UserHome               = "$USER_HOME"
@@ -342,20 +367,4 @@ object AppBundlePlugin extends Plugin {
    private final case class PListArray( seq: PListArrayEntries ) extends PListValue {
       def toXML = <array>{seq.map( _.toXML )}</array>
    }
-
-   // Sssssssssssscukers
-
-//   implicit private def t10ToTable10[A,B,C,D,E,F,G,H,I, J](t10: (ScopedTaskable[A], ScopedTaskable[B], ScopedTaskable[C],
-//      ScopedTaskable[D], ScopedTaskable[E], ScopedTaskable[F], ScopedTaskable[G], ScopedTaskable[H],
-//      ScopedTaskable[I], ScopedTaskable[J]) ): RichTaskable9[A,B,C,D,E,F,G,H,I] = new RichTaskable10(t10)
-//
-//   private final class RichTaskable10[A,B,C,D,E,F,G,H,I,J](t10: (ScopedTaskable[A], ScopedTaskable[B], ScopedTaskable[C],
-//      ScopedTaskable[D], ScopedTaskable[E], ScopedTaskable[F], ScopedTaskable[G], ScopedTaskable[H],
-//      ScopedTaskable[I], ScopedTaskable[J])) extends RichTaskables(k10(t10))
-//  	{
-//  		type Fun[M[_],Ret] = (M[A],M[B],M[C],M[D],M[E],M[F],M[G],M[H],M[I]) => Ret
-//  		def identityMap = map(mkTuple9)
-//  		protected def convertH[R](z: Fun[Id,R]) = hf9(z)
-//  		protected def convertK[M[_],R](z: Fun[M,R]) = { case a :^: b :^: c :^: d :^: e :^: f :^: g :^: h :^: i :^: KNil => z(a,b,c,d,e,f,g,h,i) }
-//  	}
 }
