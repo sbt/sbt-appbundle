@@ -53,7 +53,7 @@ Example:
     appbundle.javaOptions += "-Xmx1024m"
     appbundle.javaOptions ++= Seq( "-ea" )
     appbundle.systemProperties += "SC_HOME" -> "../scsynth"
-    appbundle.icon = Some( file( "myicon.png" ))
+    appbundle.icon := Some( file( "myicon.png" ))
 
 ### creating an IntelliJ IDEA project
 
