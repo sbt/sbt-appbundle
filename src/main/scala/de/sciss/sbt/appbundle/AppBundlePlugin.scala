@@ -31,7 +31,6 @@ import Keys._
 import Project.{Initialize, Setting}
 import java.io.{FileWriter, Writer, File}
 import collection.breakOut
-import sbt.Scoped.RichTaskable9
 
 object AppBundlePlugin extends Plugin {
 //   val appbundle        = TaskKey[ Unit ]( "appbundle" )
@@ -57,13 +56,15 @@ object AppBundlePlugin extends Plugin {
       val javaVersion      = SettingKey[ String ]( "javaVersion", "Minimum Java version required to launch the application" ) in Config
       val mainClass        = TaskKey[ Option[ String ]]( "mainClass", "The main class entry point into the application" ) in Config
       val icon             = SettingKey[ Option[ File ]]( "icon", "Image file (.png or .icns) which is used as application icon" ) in Config
+      val resources        = SettingKey[ Seq[ File ]]("resources", "Extra resource files to be copied to Contents/Resources.") in Config // Keys.resources in Config
       val organization     = Keys.organization in Config
       val normalizedName   = Keys.normalizedName in Config
       val name             = Keys.name in Config
       val version          = Keys.version in Config
       val fullClasspath    = Keys.fullClasspath in Config
       val javaOptions      = Keys.javaOptions in Config
-      private val suckers  = SettingKey[ Helper ]( "_suckers" )
+      private val helper1  = SettingKey[ Helper1 ]( "_private1" )
+      private val helper2  = SettingKey[ Helper2 ]( "_private2" )
 
       val settings   = Seq[ Setting[ _ ]](
          stub             := file( "/System/Library/Frameworks/JavaVM.framework/Versions/Current/Resources/MacOS/JavaApplicationStub" ),
@@ -74,6 +75,7 @@ object AppBundlePlugin extends Plugin {
          icon             := None,
          javaVersion      := "1.6+",
          javaOptions     <<= Keys.javaOptions in Runtime,
+         resources        := Seq.empty,
          systemProperties <<= (javaOptions, screenMenu, quartz) { (seq, _screenMenu, _quartz) =>
             val m0: Map[ String, String ] = seq.collect({ case JavaDOption( key, value ) => (key, value) })( breakOut )
             val m1 = m0 + ("apple.laf.useScreenMenuBar" -> _screenMenu.toString)
@@ -84,24 +86,28 @@ object AppBundlePlugin extends Plugin {
 //            m2
             m2.toSeq
          },
-         suckers <<= (organization, normalizedName, name, version, /* mainClass, */ javaVersion) apply Helper.apply,
+         helper1 <<= (organization, normalizedName, name, version, /* mainClass, */ javaVersion) apply Helper1.apply,
 //         appbundle <<= (organization, normalizedName, name, version, stub, systemProperties, /* javaVersion, */ /* mainClass, */
 //                        packageBin in Compile, fullClasspath, streams) map appbundleTask
-         appbundle <<= (suckers, mainClass, stub, icon, systemProperties, javaOptions, packageBin in Compile,
+         helper2 <<= (mainClass, resources) apply Helper2.apply,
+         appbundle <<= (helper1, helper2, resources, stub, icon, systemProperties, javaOptions, packageBin in Compile,
             fullClasspath, streams) map appbundleTask
       )
 
-      final case class Helper( organization: String, normalizedName: String, name: String, version: String,
+      final case class Helper1( organization: String, normalizedName: String, name: String, version: String,
                                /* mainClassOption: Option[ String ], */ javaVersion: String )
+
+      final case class Helper2( mainClassOption: Option[ String ], resources: Seq[ File ])
    }
 
 
-   private def appbundleTask( suckers: appbundle.Helper, mainClassOption: Option[ String ], stub: File,
-                              iconOption: Option[ File ],
+   private def appbundleTask( helper1: appbundle.Helper1, helper2: appbundle.Helper2,
+                              stub: File, iconOption: Option[ File ],
                               systemProperties: Seq[ (String, String) ], /* Map[ String, String ], */ javaOption: Seq[ String ], jarFile: File,
                               classpath: Classpath, streams: TaskStreams ) {
       import streams.log
-      import suckers._
+      import helper1._
+      import helper2._
 
       val mainClass              = mainClassOption.getOrElse( "Main class undefined" )
 
