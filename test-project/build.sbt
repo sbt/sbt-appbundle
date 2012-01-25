@@ -23,4 +23,7 @@ appbundle.javaOptions ++= Seq( "-ea" )
 
 appbundle.systemProperties += "APP_TITLE" -> "Open Sound Control"
 
-credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
+appbundle.resources += file( "help.html" )
+
+appbundle.workingDirectory := file( appbundle.BundleVar_JavaRoot )
+

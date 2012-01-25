@@ -4,5 +4,5 @@ src_managed/
 project/boot/
 .idea/
 .idea_modules/
-src/test-project/target/
-src/test-project/project/boot/
+test-project/target/
+test-project/project/boot/

@@ -1,7 +1,9 @@
 package de.sciss.testapp
 
 import de.sciss.osc.{Message, UDP}
-import swing.{Alignment, Swing, Action, MainFrame, TextField, Label, GridPanel, SimpleSwingApplication}
+import swing.{Action, Alignment, Menu, MenuBar, MenuItem, Swing, MainFrame, TextField, Label, GridPanel, SimpleSwingApplication}
+import java.awt.Desktop
+import java.io.File
 
 object TestApp extends SimpleSwingApplication {
    lazy val rcv   = { val r = UDP.Receiver(); r.connect(); r }
@@ -16,6 +18,7 @@ object TestApp extends SimpleSwingApplication {
             action = Action( "transmit" ) {
                trns ! Message( "/info", text )
             }
+            tooltip = "Check out the help menu for more info!"
          }
          contents += new Label( "Receive:", null, Alignment.Right )
          contents += new TextField( 12 ) {
@@ -26,6 +29,15 @@ object TestApp extends SimpleSwingApplication {
             }
          }
       }
+
+      menuBar = new MenuBar {
+         contents += new Menu( "Help" ) {
+            contents += new MenuItem( Action( "Show help file..." ) {
+               Desktop.getDesktop.open( new File( "../help.html" ))
+            })
+         }
+      }
+
       pack()
       centerOnScreen()
       open()

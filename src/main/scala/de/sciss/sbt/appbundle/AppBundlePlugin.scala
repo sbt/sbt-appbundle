@@ -48,35 +48,39 @@ object AppBundlePlugin extends Plugin {
    object appbundle {
       val Config           = config( "appbundle" )
       val appbundle        = TaskKey[ Unit ]( "appbundle" )
-      val stub             = SettingKey[ File ]( "stub", "Path to the java application stub executable" ) in Config
+      val executable       = SettingKey[ File ]( "executable", "Path to the java application stub executable" ) in Config
       val screenMenu       = SettingKey[ Boolean ]( "screenMenu", "Whether to display the menu bar in the screen top" ) in Config
       val quartz           = SettingKey[ Option[ Boolean ]]( "quartz", "Whether to use the Apple Quartz renderer (true) or the default Java renderer" ) in Config
-//      val systemProperties = SettingKey[ Map[ String, String ]]( "systemProperties", "A key-value map passed as Java -D arguments (system properties)" ) in Config
       val systemProperties = SettingKey[ Seq[ (String, String) ]]( "systemProperties", "A key-value map passed as Java -D arguments (system properties)" ) in Config
       val javaVersion      = SettingKey[ String ]( "javaVersion", "Minimum Java version required to launch the application" ) in Config
       val mainClass        = TaskKey[ Option[ String ]]( "mainClass", "The main class entry point into the application" ) in Config
       val icon             = SettingKey[ Option[ File ]]( "icon", "Image file (.png or .icns) which is used as application icon" ) in Config
-      val resources        = SettingKey[ Seq[ File ]]("resources", "Extra resource files to be copied to Contents/Resources.") in Config // Keys.resources in Config
+      // this needs to be a taskkey, because it is one in main scope, and we cannot reuse the key
+      // while changing the type...
+      val resources        = TaskKey[ Seq[ File ]]("resources", "Extra resource files to be copied to Contents/Resources.") in Config // Keys.resources in Config
+      val workingDirectory = SettingKey[ File ]( "workingDirectorty", "Path corresponding to the application's current directory" ) in Config
       val organization     = Keys.organization in Config
       val normalizedName   = Keys.normalizedName in Config
       val name             = Keys.name in Config
       val version          = Keys.version in Config
       val fullClasspath    = Keys.fullClasspath in Config
       val javaOptions      = Keys.javaOptions in Config
-      private val helper1  = SettingKey[ Helper1 ]( "_private1" )
-      private val helper2  = SettingKey[ Helper2 ]( "_private2" )
+      private val infos    = SettingKey[ InfoSettings ]( "_aux_info" )
+      private val java     = TaskKey[ JavaSettings ]( "_aux_java" )
+      private val bundle   = TaskKey[ BundleContents ]( "_aux_bundle" )
 
-      val settings   = Seq[ Setting[ _ ]](
-         stub             := file( "/System/Library/Frameworks/JavaVM.framework/Versions/Current/Resources/MacOS/JavaApplicationStub" ),
-         fullClasspath   <<= (Keys.fullClasspath in Compile) orr (Keys.fullClasspath in Runtime),
-         mainClass       <<= mainClass orr (selectMainClass in Runtime),
-         screenMenu       := true,
-         quartz           := None,
-         icon             := None,
-         javaVersion      := "1.6+",
-         javaOptions     <<= Keys.javaOptions in Runtime,
-         resources        := Seq.empty,
-         systemProperties <<= (javaOptions, screenMenu, quartz) { (seq, _screenMenu, _quartz) =>
+      val settings = Seq[ Setting[ _ ]](
+         executable         := file( "/System/Library/Frameworks/JavaVM.framework/Versions/Current/Resources/MacOS/JavaApplicationStub" ),
+         fullClasspath     <<= (Keys.fullClasspath in Compile) orr (Keys.fullClasspath in Runtime),
+         mainClass         <<= mainClass orr (selectMainClass in Runtime),
+         screenMenu         := true,
+         quartz             := None,
+         icon               := None,
+         javaVersion        := "1.6+",
+         javaOptions       <<= Keys.javaOptions in Runtime,
+         resources          := Seq.empty,
+         workingDirectory   := file( BundleVar_AppPackage ),
+         systemProperties  <<= (javaOptions, screenMenu, quartz) { (seq, _screenMenu, _quartz) =>
             val m0: Map[ String, String ] = seq.collect({ case JavaDOption( key, value ) => (key, value) })( breakOut )
             val m1 = m0 + ("apple.laf.useScreenMenuBar" -> _screenMenu.toString)
             val m2 = _quartz match {
@@ -86,28 +90,32 @@ object AppBundlePlugin extends Plugin {
 //            m2
             m2.toSeq
          },
-         helper1 <<= (organization, normalizedName, name, version, /* mainClass, */ javaVersion) apply Helper1.apply,
-//         appbundle <<= (organization, normalizedName, name, version, stub, systemProperties, /* javaVersion, */ /* mainClass, */
-//                        packageBin in Compile, fullClasspath, streams) map appbundleTask
-         helper2 <<= (mainClass, resources) apply Helper2.apply,
-         appbundle <<= (helper1, helper2, resources, stub, icon, systemProperties, javaOptions, packageBin in Compile,
-            fullClasspath, streams) map appbundleTask
+         infos             <<= (organization, normalizedName, name, version)( InfoSettings ),
+         java              <<= (systemProperties, javaOptions, fullClasspath, packageBin in Compile,
+                                mainClass, javaVersion, workingDirectory) map JavaSettings,
+         bundle            <<= (executable, icon, resources) map BundleContents,
+         appbundle         <<= (infos, java, bundle, streams) map appbundleTask
       )
 
-      final case class Helper1( organization: String, normalizedName: String, name: String, version: String,
-                               /* mainClassOption: Option[ String ], */ javaVersion: String )
+      final case class InfoSettings( organization: String, normalizedName: String, name: String, version: String )
 
-      final case class Helper2( mainClassOption: Option[ String ], resources: Seq[ File ])
+      final case class JavaSettings( systemProperties: Seq[ (String, String) ], javaOptions: Seq[ String ],
+                                     classpath: Classpath, jarFile: File, mainClassOption: Option[ String ],
+                                     javaVersion: String, workingDirectory: File )
+
+      final case class BundleContents( executable: File, iconOption: Option[ File ], resources: Seq[ File ])
+
+      val BundleVar_JavaRoot               = "$JAVAROOT"
+      val BundleVar_AppPackage             = "$APP_PACKAGE"
+      val BundleVar_UserHome               = "$USER_HOME"
    }
 
-
-   private def appbundleTask( helper1: appbundle.Helper1, helper2: appbundle.Helper2,
-                              stub: File, iconOption: Option[ File ],
-                              systemProperties: Seq[ (String, String) ], /* Map[ String, String ], */ javaOption: Seq[ String ], jarFile: File,
-                              classpath: Classpath, streams: TaskStreams ) {
+   private def appbundleTask( infos: appbundle.InfoSettings, java: appbundle.JavaSettings,
+                              bundle: appbundle.BundleContents, streams: TaskStreams ) {
       import streams.log
-      import helper1._
-      import helper2._
+      import infos._
+      import java._
+      import bundle._
 
       val mainClass              = mainClassOption.getOrElse( "Main class undefined" )
 
@@ -129,15 +137,8 @@ object AppBundlePlugin extends Plugin {
       // ---- application stub ----
       if( !macOSDir.exists() ) macOSDir.mkdirs()
       if( !appStubFile.exists() ) {
-         IO.copyFile( stub, appStubFile, false )
+         IO.copyFile( executable, appStubFile, false )
          appStubFile.setExecutable( true, false )
-      }
-
-      // ---- pkginfo ----
-      if( !pkgInfoFile.exists() ) {
-         val bytes = (bundlePackageType + bundleSignature).getBytes( "UTF-8" )  // 7-bit ascii anyway...
-         require( bytes.length == 8 )
-         IO.write( pkgInfoFile, bytes )
       }
 
       // ---- java resources ----
@@ -173,6 +174,15 @@ object AppBundlePlugin extends Plugin {
 
       val outFiles = copyFiles.map( _._2 )
 
+      // ---- other resources ----
+      if( resources.nonEmpty ) {
+         val copyResources = resources.map( from => (from, resourcesDir / from.name) )
+         IO.copy( copyResources, preserveLastModified = true )
+         copyResources.foreach {
+            case (from, to) => if( from.canExecute ) to.setExecutable( true, false )
+         }
+      }
+
       // ---- icon ----
       iconOption.foreach { imageFile =>
          if( imageFile.ext == "icns" ) {
@@ -199,19 +209,20 @@ object AppBundlePlugin extends Plugin {
       }
 
       // ---- info.plist ----
-      val javaRootFile     = file( BundleVar_JavaRoot )
+      val javaRootFile     = file( appbundle.BundleVar_JavaRoot )
       val bundleClassPath  = outFiles.map( javaRootFile / _.name )
-      val vmOptions        = javaOption.filterNot {
-         case JavaDOption( _, _ ) => true
+      val vmOptions        = javaOptions.filterNot {
+         case JavaDOption( _, _ ) => true // they have been already passed to Properties
          case _ => false
       }
 
       val jEntries: PListDictEntries = Map(
-         JavaKey_MainClass    -> mainClass,
-         JavaKey_Properties   -> systemProperties.toMap[ String, String ],
-         JavaKey_ClassPath    -> PListValue.fromArray( bundleClassPath.map( _.toString )), // XXX why doesn't the implicit work?
-         JavaKey_JVMVersion   -> javaVersion,
-         JavaKey_VMOptions    -> PListValue.fromArray( vmOptions ) // XXX why doesn't the implicit work?
+         JavaKey_MainClass          -> mainClass,
+         JavaKey_Properties         -> systemProperties.toMap[ String, String ],
+         JavaKey_ClassPath          -> PListValue.fromArray( bundleClassPath.map( _.toString )), // XXX why doesn't the implicit work?
+         JavaKey_JVMVersion         -> javaVersion,
+         JavaKey_VMOptions          -> PListValue.fromArray( vmOptions ), // XXX why doesn't the implicit work?
+         JavaKey_WorkingDirectory   -> workingDirectory.getPath
       )
 
       val iterVersion   = version  // XXX TODO: append incremental build number
@@ -241,6 +252,14 @@ object AppBundlePlugin extends Plugin {
          w.close()
       }
 
+      // ---- pkginfo ----
+      if( !pkgInfoFile.exists() ) {
+         val bytes = (bundlePackageType + bundleSignature).getBytes( "UTF-8" )  // 7-bit ascii anyway...
+         require( bytes.length == 8 )
+         IO.write( pkgInfoFile, bytes )
+      }
+
+      // ---- done ----
       log.info( "Done bundling." )
 
       // WorkingDirectory (default: $APP_PACKAGE)
@@ -321,10 +340,7 @@ object AppBundlePlugin extends Plugin {
    private val JavaKey_ClassPath                = "ClassPath"
    private val JavaKey_JVMVersion               = "JVMVersion"
    private val JavaKey_VMOptions                = "VMOptions"
-
-   private val BundleVar_JavaRoot               = "$JAVAROOT"
-   private val BundleVar_AppPackage             = "$APP_PACKAGE"
-   private val BundleVar_UserHome               = "$USER_HOME"
+   private val JavaKey_WorkingDirectory         = "WorkingDirectory"
 
    private lazy val JavaDOption  = "-D(.*?)=(.*?)".r
 
