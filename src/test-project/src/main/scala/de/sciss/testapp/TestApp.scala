@@ -8,7 +8,7 @@ object TestApp extends SimpleSwingApplication {
    lazy val trns  = { val t = UDP.Transmitter( rcv.localSocketAddress ); t.connect(); t }
 
    lazy val top = new MainFrame {
-      title       = "Open Sound Control"
+      title       = sys.props.getOrElse( "APP_TITLE", "Window Title" )
       resizable   = false
       contents    = new GridPanel( 2, 2 ) {
          contents += new Label( "Transmit:", null, Alignment.Right )
