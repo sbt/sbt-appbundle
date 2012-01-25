@@ -8,13 +8,16 @@ sbt-appbundle is (C)opyright 2011&ndash;2012 by Hanns Holger Rutz. All rights re
 
 ### usage
 
-To use the plugin in your sbt project, add the following entry to `project/plugins.sbt`:
+To use the plugin in your sbt project, add the following lines to `project/plugins.sbt`:
 
-    addSbtPlugin( "de.sciss" % "sbt-appbundle" % "0.11")
+    resolvers += Resolver.url( "scalasbt",
+       url( "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-releases" ))( Resolver.ivyStylePatterns )
+
+    addSbtPlugin( "de.sciss" % "sbt-appbundle" % "0.12")
 
 sbt-appbundle is now migrating to [sbt Community Plugins](http://www.scala-sbt.org/community-plugins.html).
 
-You can find an example of its usage in `src/test-project`. Basically you add the following statement to the beginning of the main `build.sbt`:
+You can find an example of its usage in `test-project`. Basically you add the following statement to the beginning of the main `build.sbt`:
 
     seq(appbundle.settings: _*)
 
@@ -27,7 +30,7 @@ And can then configure the `appbundle` task. Without any additional configuratio
 |`organization`    |`String`               |Your publishing domain (reverse website style), used as first part in the bundle identifier | `organization` in main scope |
 |`version`         |`String`               |Version string which is shown in the Finder and About menu | `version` in main scope |
 |`mainClass`       |`Option[String]`       |Main class entry when application is launched. Appbundle fails when this is not specified or inferred | `mainClass` in main scope |
-|`stub`            |`File`                 |Path to the java application stub executable. | /System/ Library/ Frameworks/ JavaVM.framework/ Versions/ Current/ Resources/ MacOS/ JavaApplicationStub |
+|`executable`      |`File`                 |Path to the java application stub executable. | /System/ Library/ Frameworks/ JavaVM.framework/ Versions/ Current/ Resources/ MacOS/ JavaApplicationStub |
 |`fullClasspath`   |`Classpath`            |Constructed from the `fullClasspath` entries in `Compile` and `Runtime` | |
 |`javaVersion`     |`String`               |The minimum Java version required to launch the application | `1.6+` |
 |`javaOptions`     |`Seq[String]`          |Options passed to the `java` command when launching the application | `javaOptions` in main scope |
@@ -35,6 +38,14 @@ And can then configure the `appbundle` task. Without any additional configuratio
 |`screenMenu`      |`Boolean`              |Whether to display the menu bar in the screen top | `true`
 |`quartz`          |`Option[Boolean]`      |Whether to use the Apple Quartz renderer (`true`) or the default Java renderer | `None`. In this case Quartz is used for Java 1.5, but not for Java 1.6+ |
 |`icon`            |`Option[File]`         |Image or icon file which is used as application icon. A native `.icns` file will be copied unmodified to the bundle, while an image (such as `.png`) will be converted through the OS X shell utility `sips`, scaling the image to the next supported size, which is either of 16, 32, 48, 128, 256, or 512 pixels width/height | `None` |
+|`resources`       |`Seq[File]`            |Any files which should be copied directly into `Contents/Resources` | empty |
+|`workingDirectory`|`File`                 |The current directory as seen from the Java runtime | `BundleVar_AppPackage` |
+
+The following special variables are particularly useful for `workingDirectory`:
+
+     appbundle.BundleVar_AppPackage  // the directory in which the bundle resides
+     appbundle.BundleVar_JavaRoot    // the directory in which the Java jars reside
+     appbundle.BundleVar_UserHome    // the user's home directory
 
 Example:
 

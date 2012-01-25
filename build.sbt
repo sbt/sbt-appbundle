@@ -4,7 +4,7 @@ name := "sbt-appbundle"
 
 organization := "de.sciss"
 
-version := "0.12-SNAPSHOT"
+version := "0.12"
 
 scalacOptions := Seq( "-deprecation", "-unchecked" )
 
