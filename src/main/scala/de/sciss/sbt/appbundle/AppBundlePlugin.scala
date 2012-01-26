@@ -58,7 +58,7 @@ object AppBundlePlugin extends Plugin {
       // this needs to be a taskkey, because it is one in main scope, and we cannot reuse the key
       // while changing the type...
       val resources        = TaskKey[ Seq[ File ]]("resources", "Extra resource files to be copied to Contents/Resources.") in Config // Keys.resources in Config
-      val workingDirectory = SettingKey[ File ]( "workingDirectorty", "Path corresponding to the application's current directory" ) in Config
+      val workingDirectory = SettingKey[ Option[ File ]]( "workingDirectorty", "Path corresponding to the application's current directory" ) in Config
       val organization     = Keys.organization in Config
       val normalizedName   = Keys.normalizedName in Config
       val name             = Keys.name in Config
@@ -79,7 +79,7 @@ object AppBundlePlugin extends Plugin {
          javaVersion        := "1.6+",
          javaOptions       <<= Keys.javaOptions in Runtime,
          resources          := Seq.empty,
-         workingDirectory   := file( BundleVar_AppPackage ),
+         workingDirectory   := None, // file( BundleVar_AppPackage ),
          systemProperties  <<= (javaOptions, screenMenu, quartz) { (seq, _screenMenu, _quartz) =>
             val m0: Map[ String, String ] = seq.collect({ case JavaDOption( key, value ) => (key, value) })( breakOut )
             val m1 = m0 + ("apple.laf.useScreenMenuBar" -> _screenMenu.toString)
@@ -101,7 +101,7 @@ object AppBundlePlugin extends Plugin {
 
       final case class JavaSettings( systemProperties: Seq[ (String, String) ], javaOptions: Seq[ String ],
                                      classpath: Classpath, jarFile: File, mainClassOption: Option[ String ],
-                                     javaVersion: String, workingDirectory: File )
+                                     javaVersion: String, workingDirectory: Option[ File ])
 
       final case class BundleContents( executable: File, iconOption: Option[ File ], resources: Seq[ File ])
 
@@ -176,10 +176,26 @@ object AppBundlePlugin extends Plugin {
 
       // ---- other resources ----
       if( resources.nonEmpty ) {
-         val copyResources = resources.map( from => (from, resourcesDir / from.name) )
-         IO.copy( copyResources, preserveLastModified = true )
-         copyResources.foreach {
-            case (from, to) => if( from.canExecute ) to.setExecutable( true, false )
+//         val copyResources = resources.map( from => (from, resourcesDir / from.name) )
+//         IO.copy( copyResources, preserveLastModified = true )
+//         copyResources.foreach {
+//            case (from, to) => if( from.canExecute ) to.setExecutable( true, false )
+//         }
+
+         def checkExecutable( from: File, to: File ) {
+            if( from.canExecute ) to.setExecutable( true, false )
+            if( from.isDirectory ) {
+               from.listFiles().foreach { sub =>
+                  checkExecutable( sub, to / sub.name )
+               }
+            }
+         }
+
+         resources.foreach { from =>
+            val to = resourcesDir / from.name
+            if( from.isFile ) IO.copyFile( from, to, true )
+            else if( from.isDirectory ) IO.copyDirectory( from, to, true, true )
+            checkExecutable( from, to )
          }
       }
 
@@ -216,14 +232,18 @@ object AppBundlePlugin extends Plugin {
          case _ => false
       }
 
-      val jEntries: PListDictEntries = Map(
+      val jEntries0 = Map[ String, PListValue ](
          JavaKey_MainClass          -> mainClass,
          JavaKey_Properties         -> systemProperties.toMap[ String, String ],
          JavaKey_ClassPath          -> PListValue.fromArray( bundleClassPath.map( _.toString )), // XXX why doesn't the implicit work?
          JavaKey_JVMVersion         -> javaVersion,
-         JavaKey_VMOptions          -> PListValue.fromArray( vmOptions ), // XXX why doesn't the implicit work?
-         JavaKey_WorkingDirectory   -> workingDirectory.getPath
+         JavaKey_VMOptions          -> PListValue.fromArray( vmOptions )   // XXX why doesn't the implicit work?
       )
+
+      val jEntries: PListDictEntries = workingDirectory match {
+         case Some( value ) => jEntries0 + (JavaKey_WorkingDirectory -> value.getPath)
+         case _ => jEntries0
+      }
 
       val iterVersion   = version  // XXX TODO: append incremental build number
       val bundleID      = organization + "." + normalizedName

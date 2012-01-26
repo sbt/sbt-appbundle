@@ -33,7 +33,7 @@ object TestApp extends SimpleSwingApplication {
       menuBar = new MenuBar {
          contents += new Menu( "Help" ) {
             contents += new MenuItem( Action( "Show help file..." ) {
-               Desktop.getDesktop.open( new File( "../help.html" ))
+               Desktop.getDesktop.open( new File( "Contents/Resources/help/index.html" ))
             })
          }
       }

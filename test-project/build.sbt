@@ -2,7 +2,7 @@ name := "TestApp"
 
 organization := "de.sciss"
 
-version := "0.12"
+version := "0.13-SNAPSHOT"
 
 seq(appbundle.settings: _*)
 
@@ -17,13 +17,13 @@ appbundle.name := "TestApplication"
 
 appbundle.javaOptions += "-Xmx1024m"
 
-appbundle.icon := Some( file( "rg1024_Moon_in_comic_style.png" ))
+appbundle.icon := Some( file( "help" ) / "images" / "rg1024_Moon_in_comic_style.png" )
 
 appbundle.javaOptions ++= Seq( "-ea" )
 
 appbundle.systemProperties += "APP_TITLE" -> "Open Sound Control"
 
-appbundle.resources += file( "help.html" )
+appbundle.resources += file( "help" )
 
-appbundle.workingDirectory := file( appbundle.BundleVar_JavaRoot )
+appbundle.workingDirectory := Some( file( appbundle.BundleVar_AppPackage ))
 
