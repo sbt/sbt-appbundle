@@ -33,6 +33,7 @@ And can then configure the `appbundle` task. Without any additional configuratio
 |`executable`      |`File`                 |Path to the java application stub executable. | /System/ Library/ Frameworks/ JavaVM.framework/ Versions/ Current/ Resources/ MacOS/ JavaApplicationStub |
 |`fullClasspath`   |`Classpath`            |Constructed from the `fullClasspath` entries in `Compile` and `Runtime` | |
 |`javaVersion`     |`String`               |The minimum Java version required to launch the application | `1.6+` |
+|`javaArchs`       |`Seq[String]`          |If not empty, the supported processor architectures in order of their preference | empty |
 |`javaOptions`     |`Seq[String]`          |Options passed to the `java` command when launching the application | `javaOptions` in main scope |
 |`systemProperties`|`Seq[(String, String)]`|A key-value map passed as Java `-D` arguments (system properties) | extracts `-D` entries from `javaOptions` and adds entries for `screenMenu` and `quartz` |
 |`screenMenu`      |`Boolean`              |Whether to display the menu bar in the screen top | `true`
@@ -46,6 +47,12 @@ The following special variables are particularly useful for `workingDirectory`:
      appbundle.BundleVar_AppPackage  // the directory in which the bundle resides
      appbundle.BundleVar_JavaRoot    // the directory in which the Java jars reside
      appbundle.BundleVar_UserHome    // the user's home directory
+
+The following values can be used for the `javaArchs` key:
+
+     appbundle.JavaArch_i386
+     appbundle.JavaArch_x86_64
+     appbundle.JavaArch_ppc
 
 Example:
 
