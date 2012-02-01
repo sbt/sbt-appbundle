@@ -53,6 +53,7 @@ object AppBundlePlugin extends Plugin {
       val quartz           = SettingKey[ Option[ Boolean ]]( "quartz", "Whether to use the Apple Quartz renderer (true) or the default Java renderer" ) in Config
       val systemProperties = SettingKey[ Seq[ (String, String) ]]( "systemProperties", "A key-value map passed as Java -D arguments (system properties)" ) in Config
       val javaVersion      = SettingKey[ String ]( "javaVersion", "Minimum Java version required to launch the application" ) in Config
+      val javaArchs        = SettingKey[ Seq[ String ]]( "javaArchs", "Entries for the JVMArchs entry, specifying supported processor architectures in order of their preference" ) in Config
       val mainClass        = TaskKey[ Option[ String ]]( "mainClass", "The main class entry point into the application" ) in Config
       val icon             = SettingKey[ Option[ File ]]( "icon", "Image file (.png or .icns) which is used as application icon" ) in Config
       // this needs to be a taskkey, because it is one in main scope, and we cannot reuse the key
@@ -77,6 +78,7 @@ object AppBundlePlugin extends Plugin {
          quartz             := None,
          icon               := None,
          javaVersion        := "1.6+",
+         javaArchs          := Seq.empty,
          javaOptions       <<= Keys.javaOptions in Runtime,
          resources          := Seq.empty,
          workingDirectory   := None, // file( BundleVar_AppPackage ),
@@ -92,7 +94,7 @@ object AppBundlePlugin extends Plugin {
          },
          infos             <<= (organization, normalizedName, name, version)( InfoSettings ),
          java              <<= (systemProperties, javaOptions, fullClasspath, packageBin in Compile,
-                                mainClass, javaVersion, workingDirectory) map JavaSettings,
+                                mainClass, javaVersion, javaArchs, workingDirectory) map JavaSettings,
          bundle            <<= (executable, icon, resources) map BundleContents,
          appbundle         <<= (infos, java, bundle, streams) map appbundleTask
       )
@@ -101,13 +103,67 @@ object AppBundlePlugin extends Plugin {
 
       final case class JavaSettings( systemProperties: Seq[ (String, String) ], javaOptions: Seq[ String ],
                                      classpath: Classpath, jarFile: File, mainClassOption: Option[ String ],
-                                     javaVersion: String, workingDirectory: Option[ File ])
+                                     javaVersion: String, javaArchs: Seq[ String ], workingDirectory: Option[ File ])
 
       final case class BundleContents( executable: File, iconOption: Option[ File ], resources: Seq[ File ])
 
-      val BundleVar_JavaRoot               = "$JAVAROOT"
-      val BundleVar_AppPackage             = "$APP_PACKAGE"
-      val BundleVar_UserHome               = "$USER_HOME"
+      val BundleVar_JavaRoot     = "$JAVAROOT"
+      val BundleVar_AppPackage   = "$APP_PACKAGE"
+      val BundleVar_UserHome     = "$USER_HOME"
+
+      val JavaArch_i386          = "i386"
+      val JavaArch_x86_64        = "x86_64"
+      val JavaArch_ppc           = "ppc"
+   }
+
+   private final case class PList( dict: PListDict ) {
+      def toXML =
+// <?xml version="1.0" encoding="UTF-8"?>
+// <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+{dict.toXML}
+</plist>
+
+      def write( w: Writer ) {
+         xml.XML.write( w, node = toXML, enc = "UTF-8", xmlDecl = true, doctype = PListDocType )
+      }
+   }
+
+   private lazy val PListDocType = xml.dtd.DocType( "plist", xml.dtd.PublicID( "-//Apple//DTD PLIST 1.0//EN",
+      "http://www.apple.com/DTDs/PropertyList-1.0.dtd"), Nil )
+
+   private type PListDictEntries    = Map[ String, PListValue ]
+   private type PListArrayEntries   = Seq[ PListValue ]
+   private trait PListValueLow {
+//      implicit def fromArray[ A <% PListArray ]( a: A ) : PListValue = a: PListArray
+      implicit def fromValueSeq( seq: PListArrayEntries ) : PListArray = PListArray( seq )
+      implicit def fromStringSeq( seq: Seq[ String ]) : PListArray = PListArray( seq.map( PListString( _ )))
+   }
+   private object PListValue extends PListValueLow {
+      implicit def fromString( s: String ) : PListValue = PListString( s )
+//      implicit def fromDict[ A <% PListDict ]( a: A ) : PListValue = a: PListDict
+      implicit def fromValueMap( map: PListDictEntries ) : PListDict = PListDict( map )
+      implicit def fromStringMap( map: Map[ String, String ]) : PListDict = PListDict( map.mapValues( PListString( _ )))
+   }
+   private sealed trait PListValue {
+      def toXML : xml.Node
+   }
+   private final case class PListString( value: String ) extends PListValue {
+      def toXML = <string>{value}</string>
+   }
+//   private object PListDict {
+//      implicit def fromValueMap( map: PListDictEntries ) : PListDict = PListDict( map )
+//      implicit def fromStringMap( map: Map[ String, String ]) : PListDict = PListDict( map.mapValues( PListString( _ )))
+//   }
+   private final case class PListDict( map: PListDictEntries ) extends PListValue {
+      def toXML = <dict>{map.map { case (key, value) => <key>{key}</key> ++ value.toXML }}</dict>
+   }
+//   private object PListArray {
+//      implicit def fromValueSeq( seq: PListArrayEntries ) : PListArray = PListArray( seq )
+//      implicit def fromStringSeq( seq: Seq[ String ]) : PListArray = PListArray( seq.map( PListString( _ )))
+//   }
+   private final case class PListArray( seq: PListArrayEntries ) extends PListValue {
+      def toXML = <array>{seq.map( _.toXML )}</array>
    }
 
    private def appbundleTask( infos: appbundle.InfoSettings, java: appbundle.JavaSettings,
@@ -235,14 +291,18 @@ object AppBundlePlugin extends Plugin {
       val jEntries0 = Map[ String, PListValue ](
          JavaKey_MainClass          -> mainClass,
          JavaKey_Properties         -> systemProperties.toMap[ String, String ],
-         JavaKey_ClassPath          -> PListValue.fromArray( bundleClassPath.map( _.toString )), // XXX why doesn't the implicit work?
+         JavaKey_ClassPath          -> bundleClassPath.map( _.toString ),
          JavaKey_JVMVersion         -> javaVersion,
-         JavaKey_VMOptions          -> PListValue.fromArray( vmOptions )   // XXX why doesn't the implicit work?
+         JavaKey_VMOptions          -> vmOptions
       )
 
+      val jEntries1: Map[ String, PListValue ] = if( javaArchs.nonEmpty ) {
+         jEntries0 + (JavaKey_JVMArchs -> javaArchs)
+      } else jEntries0
+
       val jEntries: PListDictEntries = workingDirectory match {
-         case Some( value ) => jEntries0 + (JavaKey_WorkingDirectory -> value.getPath)
-         case _ => jEntries0
+         case Some( value ) => jEntries1 + (JavaKey_WorkingDirectory -> value.getPath)
+         case _ => jEntries1
       }
 
       val iterVersion   = version  // XXX TODO: append incremental build number
@@ -361,52 +421,7 @@ object AppBundlePlugin extends Plugin {
    private val JavaKey_JVMVersion               = "JVMVersion"
    private val JavaKey_VMOptions                = "VMOptions"
    private val JavaKey_WorkingDirectory         = "WorkingDirectory"
+   private val JavaKey_JVMArchs                 = "JVMArchs"
 
    private lazy val JavaDOption  = "-D(.*?)=(.*?)".r
-
-   private final case class PList( dict: PListDict ) {
-      def toXML =
-// <?xml version="1.0" encoding="UTF-8"?>
-// <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-{dict.toXML}
-</plist>
-
-      def write( w: Writer ) {
-         xml.XML.write( w, node = toXML, enc = "UTF-8", xmlDecl = true, doctype = PListDocType )
-      }
-   }
-
-   private lazy val PListDocType = xml.dtd.DocType( "plist", xml.dtd.PublicID( "-//Apple//DTD PLIST 1.0//EN",
-      "http://www.apple.com/DTDs/PropertyList-1.0.dtd"), Nil )
-
-   private type PListDictEntries    = Map[ String, PListValue ]
-   private type PListArrayEntries   = Seq[ PListValue ]
-   private trait PListValueLow {
-      implicit def fromArray[ A <% PListArray ]( a: A ) : PListValue = a: PListArray
-   }
-   private object PListValue extends PListValueLow {
-      implicit def fromString( s: String ) : PListValue = PListString( s )
-      implicit def fromDict[ A <% PListDict ]( a: A ) : PListValue = a: PListDict
-   }
-   private sealed trait PListValue {
-      def toXML : xml.Node
-   }
-   private final case class PListString( value: String ) extends PListValue {
-      def toXML = <string>{value}</string>
-   }
-   private object PListDict {
-      implicit def fromValueMap( map: PListDictEntries ) : PListDict = PListDict( map )
-      implicit def fromStringMap( map: Map[ String, String ]) : PListDict = PListDict( map.mapValues( PListString( _ )))
-   }
-   private final case class PListDict( map: PListDictEntries ) extends PListValue {
-      def toXML = <dict>{map.map { case (key, value) => <key>{key}</key> ++ value.toXML }}</dict>
-   }
-   private object PListArray {
-      implicit def fromValueSeq( seq: PListArrayEntries ) : PListArray = PListArray( seq )
-      implicit def fromStringSeq( seq: Seq[ String ]) : PListArray = PListArray( seq.map( PListString( _ )))
-   }
-   private final case class PListArray( seq: PListArrayEntries ) extends PListValue {
-      def toXML = <array>{seq.map( _.toXML )}</array>
-   }
 }
