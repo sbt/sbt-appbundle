@@ -8,6 +8,8 @@ version := "0.13"
 
 scalaVersion := "2.9.2"
 
+crossScalaVersions := Seq( "2.9.2", "2.9.1" )
+
 scalacOptions := Seq( "-deprecation", "-unchecked" )
 
 description := "An sbt plugin to create OS X application bundles"
