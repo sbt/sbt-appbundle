@@ -14,18 +14,6 @@ homepage := Some( url( "https://github.com/Sciss/sbt-appbundle" ))
 
 licenses := Seq( "LGPL v2.1+" -> url( "http://www.gnu.org/licenses/lgpl-2.1.txt" ))
 
-// the following was true for scala-tools.org
-//
-// publishMavenStyle := true
-//
-//publishTo <<= version { (v: String) =>
-//   Some( "Scala Tools Nexus" at "http://nexus.scala-tools.org/content/repositories/".+(
-//      if( v.endsWith( "-SNAPSHOT")) "snapshots/" else "releases/"
-//   ))
-//}
-//
-// credentials += Credentials( Path.userHome / ".ivy2" / ".credentials" )
-
 // the following is valid for scalasbt.artifactoryonline.com
 
 publishTo <<= version { (v: String) =>
@@ -57,8 +45,6 @@ pomExtra :=
 // publishArtifact in (Compile, packageDoc) := false
 
 // publishArtifact in (Compile, packageSrc) := false
-
-// seq(ScriptedPlugin.scriptedSettings: _*)
 
 // ---- ls.implicit.ly ----
 
