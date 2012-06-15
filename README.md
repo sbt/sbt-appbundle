@@ -8,14 +8,11 @@ sbt-appbundle is (C)opyright 2011&ndash;2012 by Hanns Holger Rutz. All rights re
 
 ### usage
 
-To use the plugin in your sbt project, add the following lines to `project/plugins.sbt`:
-
-    resolvers += Resolver.url( "scalasbt",
-       url( "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-releases" ))( Resolver.ivyStylePatterns )
+To use the plugin in your sbt project, add the following line to `project/plugins.sbt`:
 
     addSbtPlugin( "de.sciss" % "sbt-appbundle" % "0.14" )
 
-sbt-appbundle is now migrating to [sbt Community Plugins](http://www.scala-sbt.org/community-plugins.html).
+sbt-appbundle is now hosted on maven central (sonatype), so it should be found automatically.
 
 You can find an example of its usage in `test-project`. Basically you add the following statement to the beginning of the main `build.sbt`:
 
