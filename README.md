@@ -18,12 +18,12 @@ You can find an example of its usage in `test-project`. Basically you add the fo
 
     seq(appbundle.settings: _*)
 
-And can then configure the `appbundle` task. Without any additional configuration, the task will create the app bundle in the base directory under the name `project-name.app`. The following keys are available:
+And can then configure the `appbundle` task. Without any additional configuration, the task will create the app bundle in the `target` directory under the name `project-name.app`. The following keys are available:
 
 |**name**          |**key-type**           |**description**             |**default**|
 |------------------|-----------------------|----------------------------|-----------|
 |`name`            |`String`               |Name for the bundle, without the .app extension | `name` in main scope |
-|`normalizedName`  |`String`               |Lower case namem used as second part in the bundle identifier | `normalizedName` in main scope |
+|`normalizedName`  |`String`               |Lower case name used as second part in the bundle identifier | `normalizedName` in main scope |
 |`organization`    |`String`               |Your publishing domain (reverse website style), used as first part in the bundle identifier | `organization` in main scope |
 |`version`         |`String`               |Version string which is shown in the Finder and About menu | `version` in main scope |
 |`mainClass`       |`Option[String]`       |Main class entry when application is launched. Appbundle fails when this is not specified or inferred | `mainClass` in main scope |
