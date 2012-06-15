@@ -4,7 +4,7 @@ name := "sbt-appbundle"
 
 organization := "de.sciss"
 
-version := "0.13"
+version := "0.14"
 
 scalaVersion := "2.9.2"
 

@@ -13,7 +13,7 @@ To use the plugin in your sbt project, add the following lines to `project/plugi
     resolvers += Resolver.url( "scalasbt",
        url( "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-releases" ))( Resolver.ivyStylePatterns )
 
-    addSbtPlugin( "de.sciss" % "sbt-appbundle" % "0.13" )
+    addSbtPlugin( "de.sciss" % "sbt-appbundle" % "0.14" )
 
 sbt-appbundle is now migrating to [sbt Community Plugins](http://www.scala-sbt.org/community-plugins.html).
 
@@ -30,6 +30,8 @@ And can then configure the `appbundle` task. Without any additional configuratio
 |`organization`    |`String`               |Your publishing domain (reverse website style), used as first part in the bundle identifier | `organization` in main scope |
 |`version`         |`String`               |Version string which is shown in the Finder and About menu | `version` in main scope |
 |`mainClass`       |`Option[String]`       |Main class entry when application is launched. Appbundle fails when this is not specified or inferred | `mainClass` in main scope |
+|`target`          |`File`                 |Directory in which the bundle is to be created | `target` in main scope |
+|`outputPath`      |`File`                 |Fully qualified path to the bundle | `target / name + ".app"` |
 |`executable`      |`File`                 |Path to the java application stub executable. | /System/ Library/ Frameworks/ JavaVM.framework/ Versions/ Current/ Resources/ MacOS/ JavaApplicationStub |
 |`fullClasspath`   |`Classpath`            |Constructed from the `fullClasspath` entries in `Compile` and `Runtime` | |
 |`javaVersion`     |`String`               |The minimum Java version required to launch the application | `1.6+` |
@@ -62,6 +64,10 @@ Example:
     appbundle.systemProperties += "SC_HOME" -> "../scsynth"
     appbundle.icon := Some( file( "myicon.png" ))
 
+As of version 0.14, the default bundle target directory is `target`. If you want to revert to the previous behaviour, putting it into the main directory, the following can be used:
+
+    appbundle.target <<= baseDirectory
+
 ### creating an IntelliJ IDEA project
 
 If you want to work on the plugin in IntelliJ IDEA, you can set up a project like this: Make sure you have the following contents in `~/.sbt/plugins/build.sbt`:
@@ -74,7 +80,6 @@ Then to create the IDEA project, run the following two commands from the xsbt sh
 
     > set ideaProjectName := "sbt-appbundle"
     > gen-idea
-
 
 ### credits
 

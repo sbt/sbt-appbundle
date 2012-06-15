@@ -2,7 +2,7 @@ name := "TestApp"
 
 organization := "de.sciss"
 
-version := "0.13"
+version := "0.14"
 
 seq(appbundle.settings: _*)
 
@@ -29,3 +29,4 @@ appbundle.resources += file( "help" )
 
 appbundle.workingDirectory := Some( file( appbundle.BundleVar_AppPackage ))
 
+appbundle.target <<= baseDirectory

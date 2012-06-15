@@ -63,12 +63,14 @@ object AppBundlePlugin extends Plugin {
       val organization     = Keys.organization in Config
       val normalizedName   = Keys.normalizedName in Config
       val name             = Keys.name in Config
+      val target           = Keys.target in Config
+      val outputPath       = SettingKey[ File ]( "outputPath", "Target appbundle (.app) directory" ) in Config
       val version          = Keys.version in Config
       val fullClasspath    = Keys.fullClasspath in Config
       val javaOptions      = Keys.javaOptions in Config
       private val infos    = SettingKey[ InfoSettings ]( "_aux_info" )
       private val java     = TaskKey[ JavaSettings ]( "_aux_java" )
-      private val bundle   = TaskKey[ BundleContents ]( "_aux_bundle" )
+      private val bundle   = TaskKey[ BundleSettings ]( "_aux_bundle" )
 
       val settings = Seq[ Setting[ _ ]](
          executable         := file( "/System/Library/Frameworks/JavaVM.framework/Versions/Current/Resources/MacOS/JavaApplicationStub" ),
@@ -92,10 +94,11 @@ object AppBundlePlugin extends Plugin {
 //            m2
             m2.toSeq
          },
+         outputPath        <<= (target, name) { (t, n) => t / (n + ".app") },
          infos             <<= (organization, normalizedName, name, version)( InfoSettings ),
          java              <<= (systemProperties, javaOptions, fullClasspath, packageBin in Compile,
                                 mainClass, javaVersion, javaArchs, workingDirectory) map JavaSettings,
-         bundle            <<= (executable, icon, resources) map BundleContents,
+         bundle            <<= (outputPath, executable, icon, resources) map BundleSettings,
          appbundle         <<= (infos, java, bundle, streams) map appbundleTask
       )
 
@@ -105,7 +108,7 @@ object AppBundlePlugin extends Plugin {
                                      classpath: Classpath, jarFile: File, mainClassOption: Option[ String ],
                                      javaVersion: String, javaArchs: Seq[ String ], workingDirectory: Option[ File ])
 
-      final case class BundleContents( executable: File, iconOption: Option[ File ], resources: Seq[ File ])
+      final case class BundleSettings( path: File, executable: File, iconOption: Option[ File ], resources: Seq[ File ])
 
       val BundleVar_JavaRoot     = "$JAVAROOT"
       val BundleVar_AppPackage   = "$APP_PACKAGE"
@@ -167,7 +170,7 @@ object AppBundlePlugin extends Plugin {
    }
 
    private def appbundleTask( infos: appbundle.InfoSettings, java: appbundle.JavaSettings,
-                              bundle: appbundle.BundleContents, streams: TaskStreams ) {
+                              bundle: appbundle.BundleSettings, streams: TaskStreams ) {
       import streams.log
       import infos._
       import java._
@@ -175,10 +178,9 @@ object AppBundlePlugin extends Plugin {
 
       val mainClass              = mainClassOption.getOrElse( "Main class undefined" )
 
-      val appBundleDir           = file( name + ".app" )
-      log.info( "Bundling " + appBundleDir )
+      log.info( "Bundling " + path )
 
-      val contentsDir            = appBundleDir / "Contents"
+      val contentsDir            = path / "Contents"
       val infoPListFile          = contentsDir / "Info.plist"
       val resourcesDir           = contentsDir / "Resources"
       val javaDir                = resourcesDir / "Java"
@@ -193,7 +195,7 @@ object AppBundlePlugin extends Plugin {
       // ---- application stub ----
       if( !macOSDir.exists() ) macOSDir.mkdirs()
       if( !appStubFile.exists() ) {
-         IO.copyFile( executable, appStubFile, false )
+         IO.copyFile( executable, appStubFile, preserveLastModified = false )
          appStubFile.setExecutable( true, false )
       }
 
@@ -225,7 +227,7 @@ object AppBundlePlugin extends Plugin {
 
       copyFiles.foreach { case (inPath, outPath) =>
          log.verbose( "Copying to file " + outPath )
-         IO.copyFile( inPath, outPath, true )
+         IO.copyFile( inPath, outPath, preserveLastModified = true )
       }
 
       val outFiles = copyFiles.map( _._2 )
@@ -249,8 +251,8 @@ object AppBundlePlugin extends Plugin {
 
          resources.foreach { from =>
             val to = resourcesDir / from.name
-            if( from.isFile ) IO.copyFile( from, to, true )
-            else if( from.isDirectory ) IO.copyDirectory( from, to, true, true )
+            if( from.isFile ) IO.copyFile( from, to, preserveLastModified = true )
+            else if( from.isDirectory ) IO.copyDirectory( from, to, overwrite = true, preserveLastModified = true )
             checkExecutable( from, to )
          }
       }
@@ -258,7 +260,7 @@ object AppBundlePlugin extends Plugin {
       // ---- icon ----
       iconOption.foreach { imageFile =>
          if( imageFile.ext == "icns" ) {
-            IO.copyFile( imageFile, iconFile, true )
+            IO.copyFile( imageFile, iconFile, preserveLastModified = true )
          } else {
             import sys.process._
             val lines         = Seq( "sips", "-g", "pixelHeight", "-g", "pixelWidth", imageFile.getPath ).lines
