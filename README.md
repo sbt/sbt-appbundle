@@ -2,13 +2,17 @@
 
 ### statement
 
-sbt-appbundle is a plugin for xsbt (sbt 0.11) that adds the `appbundle` task to create a standalone OS X application bundle.
+sbt-appbundle is a plugin for sbt (sbt 0.11) that adds the `appbundle` task to create a standalone OS X application bundle.
 
 sbt-appbundle is (C)opyright 2011&ndash;2012 by Hanns Holger Rutz. All rights reserved. It is released under the [GNU Lesser General Public License](http://github.com/Sciss/sbt-appbundle/blob/master/licenses/sbt-appbundle-License.txt) and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`.
 
 ### usage
 
-To use the plugin in your sbt project, add the following line to `project/plugins.sbt`:
+To use the plugin in your sbt 0.12 project, add the following line to `project/plugins.sbt`:
+
+    addSbtPlugin( "de.sciss" % "sbt-appbundle" % "0.15" )
+
+To use it with sbt 0.11.3, use version 0.14:
 
     addSbtPlugin( "de.sciss" % "sbt-appbundle" % "0.14" )
 
@@ -73,10 +77,7 @@ If you want to work on the plugin in IntelliJ IDEA, you can set up a project lik
     
     addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.0.0")
 
-Then to create the IDEA project, run the following two commands from the xsbt shell:
-
-    > set ideaProjectName := "sbt-appbundle"
-    > gen-idea
+Then to create the IDEA project, run `sbt run`.
 
 ### credits
 

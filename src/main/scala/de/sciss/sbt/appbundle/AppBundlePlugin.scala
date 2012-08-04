@@ -51,7 +51,7 @@ object AppBundlePlugin extends Plugin {
       val executable       = SettingKey[ File ]( "executable", "Path to the java application stub executable" ) in Config
       val screenMenu       = SettingKey[ Boolean ]( "screenMenu", "Whether to display the menu bar in the screen top" ) in Config
       val quartz           = SettingKey[ Option[ Boolean ]]( "quartz", "Whether to use the Apple Quartz renderer (true) or the default Java renderer" ) in Config
-      val systemProperties = SettingKey[ Seq[ (String, String) ]]( "systemProperties", "A key-value map passed as Java -D arguments (system properties)" ) in Config
+      val systemProperties = TaskKey[ Seq[ (String, String) ]]( "systemProperties", "A key-value map passed as Java -D arguments (system properties)" ) in Config
       val javaVersion      = SettingKey[ String ]( "javaVersion", "Minimum Java version required to launch the application" ) in Config
       val javaArchs        = SettingKey[ Seq[ String ]]( "javaArchs", "Entries for the JVMArchs entry, specifying supported processor architectures in order of their preference" ) in Config
       val mainClass        = TaskKey[ Option[ String ]]( "mainClass", "The main class entry point into the application" ) in Config
@@ -84,7 +84,7 @@ object AppBundlePlugin extends Plugin {
          javaOptions       <<= Keys.javaOptions in Runtime,
          resources          := Seq.empty,
          workingDirectory   := None, // file( BundleVar_AppPackage ),
-         systemProperties  <<= (javaOptions, screenMenu, quartz) { (seq, _screenMenu, _quartz) =>
+         systemProperties  <<= (javaOptions, screenMenu, quartz) map { (seq, _screenMenu, _quartz) =>
             val m0: Map[ String, String ] = seq.collect({ case JavaDOption( key, value ) => (key, value) })( breakOut )
             val m1 = m0 + ("apple.laf.useScreenMenuBar" -> _screenMenu.toString)
             val m2 = _quartz match {
