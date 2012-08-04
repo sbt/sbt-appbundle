@@ -1,0 +1,5 @@
+#!/bin/sh
+mv ~/.sbt/plugins/build.sbt ~/Desktop/temp_build.sbt
+sbt compile
+mv ~/Desktop/temp_build.sbt ~/.sbt/plugins/build.sbt
+sbt compile
