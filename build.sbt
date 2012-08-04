@@ -36,8 +36,8 @@ pomIncludeRepository := { _ => false }
 
 pomExtra :=
 <scm>
-  <url>git@github.com:Sciss/sbt-appbundle.git</url>
-  <connection>scm:git:git@github.com:Sciss/sbt-appbundle.git</connection>
+  <url>git@github.com:sbt/sbt-appbundle.git</url>
+  <connection>scm:git:git@github.com:sbt/sbt-appbundle.git</connection>
 </scm>
 <developers>
    <developer>
@@ -84,7 +84,7 @@ seq( lsSettings :_* )
 
 (LsKeys.tags in LsKeys.lsync) := Seq( "sbt", "plugin", "application-bundle", "os-x" )
 
-(LsKeys.ghUser in LsKeys.lsync) := Some( "Sciss" )
+(LsKeys.ghUser in LsKeys.lsync) := Some( "sbt" )
 
 (LsKeys.ghRepo in LsKeys.lsync) := Some( "sbt-appbundle" )
 
