@@ -1,0 +1,17 @@
+{
+  "organization" : "de.sciss",
+  "name" : "sbt-appbundle",
+  "version" : "1.0.0",
+  "description" : "An sbt plugin to create OS X application bundles",
+  "site" : "https://github.com/Sciss/sbt-appbundle",
+  "tags" : [ "sbt", "plugin", "application-bundle", "os-x" ],
+  "docs" : "",
+  "resolvers" : [ "https://oss.sonatype.org/content/repositories/releases" ],
+  "dependencies" : [ ],
+  "scalas" : [ "2.9.2", "2.9.1" ],
+  "licenses" : [ {
+    "name" : "LGPL v2.1+",
+    "url" : "http://www.gnu.org/licenses/lgpl-2.1.txt"
+  } ],
+  "sbt" : true
+}
