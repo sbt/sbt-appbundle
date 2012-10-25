@@ -10,7 +10,7 @@ sbt-appbundle is (C)opyright 2011&ndash;2012 by Hanns Holger Rutz. All rights re
 
 To use the plugin in your sbt 0.12 project, add the following line to `project/plugins.sbt`:
 
-    addSbtPlugin("de.sciss" % "sbt-appbundle" % "1.0.0-SNAPSHOT")
+    addSbtPlugin("de.sciss" % "sbt-appbundle" % "1.0.0")
 
 To use it with sbt 0.11.3, use version 0.14:
 
