@@ -63,7 +63,7 @@ Document types are created through case class `appbundle.Document` which takes t
 
 |**name**          |**type**               |**description**             |**Cocoa equivalent**|**default**|
 |------------------|-----------------------|----------------------------|--------------------|---|
-|`name`            |`String`               |Document name               |`CFBundleTypeName`) | - |
+|`name`            |`String`               |Document name               |`CFBundleTypeName`  | - |
 |`role`            |`Document.Role`        |`Document.Editor` for read-write, `Document.Viewer` for read-only | `CFBundleTypeRole` | `Document.Undefined` |
 |`rank`            |`Document.Rank`        |Launch service rank, e.g. `Document.Owner` or `Document.Alternate` | `LSHandlerRank` | `Document.Undefined` |
 |`icon`            |`Option[File]`         |Image or icon file which is used as document icon (see main table for more information) | `CFBundleTypeIconFile` | `None` |
