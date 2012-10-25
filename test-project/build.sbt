@@ -2,7 +2,7 @@ name := "TestApp"
 
 organization := "de.sciss"
 
-version := "0.14"
+version := "1.0.0"
 
 seq(appbundle.settings: _*)
 

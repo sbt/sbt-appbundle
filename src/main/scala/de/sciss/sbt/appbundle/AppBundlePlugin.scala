@@ -68,6 +68,8 @@ object AppBundlePlugin extends Plugin {
       val version          = Keys.version in Config
       val fullClasspath    = Keys.fullClasspath in Config
       val javaOptions      = Keys.javaOptions in Config
+      val signature        = SettingKey[ String ]( "signature", "The four characters identifying the creator of the bundle (formerly Creator Code)" ) in Config
+      val documents        = SettingKey[ Seq[ Document ]]( "documents", "A list of document types which the application supports" ) in Config
       private val infos    = SettingKey[ InfoSettings ]( "_aux_info" )
       private val java     = TaskKey[ JavaSettings ]( "_aux_java" )
       private val bundle   = TaskKey[ BundleSettings ]( "_aux_bundle" )
@@ -83,6 +85,8 @@ object AppBundlePlugin extends Plugin {
          javaArchs          := Seq.empty,
          javaOptions       <<= Keys.javaOptions in Runtime,
          resources          := Seq.empty,
+         signature          := Signature_Unknown,
+         documents          := Seq.empty,
          workingDirectory   := None, // file( BundleVar_AppPackage ),
          systemProperties  <<= (javaOptions, screenMenu, quartz) map { (seq, _screenMenu, _quartz) =>
             val m0: Map[ String, String ] = seq.collect({ case JavaDOption( key, value ) => (key, value) })( breakOut )
@@ -98,7 +102,7 @@ object AppBundlePlugin extends Plugin {
          infos             <<= (organization, normalizedName, name, version)( InfoSettings ),
          java              <<= (systemProperties, javaOptions, fullClasspath, packageBin in Compile,
                                 mainClass, javaVersion, javaArchs, workingDirectory) map JavaSettings,
-         bundle            <<= (outputPath, executable, icon, resources) map BundleSettings,
+         bundle            <<= (outputPath, executable, icon, resources, signature, documents) map BundleSettings,
          appbundle         <<= (infos, java, bundle, streams) map appbundleTask
       )
 
@@ -108,7 +112,8 @@ object AppBundlePlugin extends Plugin {
                                      classpath: Classpath, jarFile: File, mainClassOption: Option[ String ],
                                      javaVersion: String, javaArchs: Seq[ String ], workingDirectory: Option[ File ])
 
-      final case class BundleSettings( path: File, executable: File, iconOption: Option[ File ], resources: Seq[ File ])
+      final case class BundleSettings( path: File, executable: File, iconOption: Option[ File ], resources: Seq[ File ],
+                                       signature: String, documents: Seq[ Document ])
 
       val BundleVar_JavaRoot     = "$JAVAROOT"
       val BundleVar_AppPackage   = "$APP_PACKAGE"
@@ -117,6 +122,29 @@ object AppBundlePlugin extends Plugin {
       val JavaArch_i386          = "i386"
       val JavaArch_x86_64        = "x86_64"
       val JavaArch_ppc           = "ppc"
+
+      val Signature_Unknown      = "????"
+
+      // TODO: LSItemContentTypes, LSTypeIsPackage
+      object Document {
+         sealed trait Role { def valueOption: Option[ String ]}
+         sealed trait Rank { def valueOption: Option[ String ]}
+
+         case object Editor extends Role { val valueOption = Some( "Editor" )}
+         case object Viewer extends Role { val valueOption = Some( "Viewer" )}
+         case object Shell  extends Role { val valueOption = Some( "Shell"  )}
+
+         case object Owner extends Rank     { val valueOption = Some( "Owner" )}
+         case object Alternate extends Rank { val valueOption = Some( "Alternate" )}
+         case object Default extends Rank   { val valueOption = Some( "Default" )}
+
+         case object None extends Role with Rank { val valueOption = Some( "None" )}
+         case object Undefined extends Role with Rank { val valueOption = Option.empty }
+      }
+      final case class Document( name: String, role: Document.Role = Document.Undefined,
+                                 rank: Document.Rank = Document.Undefined,
+                                 icon: Option[ File ] = scala.None, extensions: Seq[ String ] = Nil,
+                                 mimeTypes: Seq[ String ] = Nil, osTypes: Seq[ String ] = Nil )
    }
 
    private final case class PList( dict: PListDict ) {
@@ -184,7 +212,6 @@ object AppBundlePlugin extends Plugin {
       val infoPListFile          = contentsDir / "Info.plist"
       val resourcesDir           = contentsDir / "Resources"
       val javaDir                = resourcesDir / "Java"
-      val iconFile               = resourcesDir / "application.icns"
       val macOSDir               = contentsDir / "MacOS"
       val appStubFile            = macOSDir / "JavaApplicationStub"
       val pkgInfoFile            = contentsDir / "PkgInfo"
@@ -258,12 +285,12 @@ object AppBundlePlugin extends Plugin {
       }
 
       // ---- icon ----
-      iconOption.foreach { imageFile =>
-         if( imageFile.ext == "icns" ) {
-            IO.copyFile( imageFile, iconFile, preserveLastModified = true )
+      def makeIcon( inF: File, outF: File ) {
+         if( inF.ext == "icns" ) {
+            IO.copyFile( inF, outF, preserveLastModified = true )
          } else {
             import sys.process._
-            val lines         = Seq( "sips", "-g", "pixelHeight", "-g", "pixelWidth", imageFile.getPath ).lines
+            val lines         = Seq( "sips", "-g", "pixelHeight", "-g", "pixelWidth", inF.getPath ).lines
             val PixelWidth    = "\\s+pixelWidth: (\\d+)".r
             val PixelHeight   = "\\s+pixelHeight: (\\d+)".r
             val srcWidth      = lines.collect({ case PixelWidth(  s ) => s.toInt }).head
@@ -271,7 +298,7 @@ object AppBundlePlugin extends Plugin {
             val supported     = IndexedSeq( 16, 32, 48, 128, 256, 512 )
             val srcSize       = math.min( 512, math.max( srcWidth, srcHeight ))
             val tgtSize       = supported( supported.indexWhere( _ >= srcSize ))
-            val args0         = Seq( imageFile.getPath, "--out", iconFile.getPath )
+            val args0         = Seq( inF.getPath, "--out", outF.getPath )
             val args1         = if( tgtSize != srcWidth || tgtSize != srcHeight ) {
                Seq( "-z", tgtSize.toString, tgtSize.toString )
             } else {
@@ -310,22 +337,58 @@ object AppBundlePlugin extends Plugin {
       val iterVersion   = version  // XXX TODO: append incremental build number
       val bundleID      = organization + "." + normalizedName
 
-      val entries0 = Map[ String, PListValue ](
+      var entries: PListDictEntries = Map(
          CFBundleInfoDictionaryVersion    -> PListVersion,
          CFBundleIdentifier               -> bundleID,
          CFBundleName                     -> name,
          CFBundlePackageType              -> bundlePackageType,
          CFBundleExecutable               -> appStubFile.getName,
          CFBundleShortVersionString       -> version,
-         CFBundleSignature                -> bundleSignature,
+         CFBundleSignature                -> signature,
          CFBundleVersion                  -> iterVersion,
          CFBundleAllowMixedLocalizations  -> true.toString,
          BundleKey_Java                   -> jEntries
       )
 
-      val entries: PListDictEntries = if( iconOption.isDefined ) {
-         entries0 + (CFBundleIconFile -> iconFile.name)
-      } else entries0
+      iconOption.foreach { imageFile =>
+         val iconFile = resourcesDir / "application.icns"
+         makeIcon( imageFile, iconFile )
+         entries += (CFBundleIconFile -> iconFile.name)
+      }
+
+      if( documents.nonEmpty ) {
+         entries += (CFBundleDocumentTypes -> PListArray(
+            documents.map { doc =>
+               var d: PListDictEntries = Map( CFBundleTypeName -> doc.name )
+               doc.role.valueOption.foreach { roleValue =>
+                  d += CFBundleTypeRole -> roleValue
+               }
+               doc.rank.valueOption.foreach { rankValue =>
+                  d += LSHandlerRank -> rankValue
+               }
+               if( doc.extensions.nonEmpty ) {
+                  d += CFBundleTypeExtensions -> PListArray( doc.extensions.map( ext => ext: PListValue ))
+               }
+               doc.icon.foreach { imageFile =>
+                  val iconFile = resourcesDir / ("doc_" + imageFile.base + ".icns")
+                  makeIcon( imageFile, iconFile )
+                  d += (CFBundleTypeIconFile -> iconFile.name)
+               }
+               if( doc.mimeTypes.nonEmpty ) {
+                  d += CFBundleTypeMIMETypes -> PListArray( doc.mimeTypes.map( tpe => tpe: PListValue ))
+               }
+               if( doc.osTypes.nonEmpty ) {
+                  d += CFBundleTypeOSTypes -> PListArray( doc.osTypes.map { tpe =>
+                     require( tpe.length == 4, "OS Types must be composed of exactly four characters (failed: " + tpe + ")" )
+                     tpe: PListValue
+                  })
+               }
+               PListDict( d )
+            }
+         ))
+      }
+
+//println( "ENTRIES = " + entries )
 
       val w = new FileWriter( infoPListFile )
       try {
@@ -336,7 +399,7 @@ object AppBundlePlugin extends Plugin {
 
       // ---- pkginfo ----
       if( !pkgInfoFile.exists() ) {
-         val bytes = (bundlePackageType + bundleSignature).getBytes( "UTF-8" )  // 7-bit ascii anyway...
+         val bytes = (bundlePackageType + signature).getBytes( "UTF-8" )  // 7-bit ascii anyway...
          require( bytes.length == 8 )
          IO.write( pkgInfoFile, bytes )
       }
@@ -409,12 +472,20 @@ object AppBundlePlugin extends Plugin {
    private val CFBundleShortVersionString       = "CFBundleShortVersionString"
    private val CFBundleSignature                = "CFBundleSignature"
    private val CFBundleVersion                  = "CFBundleVersion"
+   private val CFBundleDocumentTypes            = "CFBundleDocumentTypes"
+   private val CFBundleTypeExtensions           = "CFBundleTypeExtensions"
+   private val CFBundleTypeIconFile             = "CFBundleTypeIconFile"
+   private val CFBundleTypeMIMETypes            = "CFBundleTypeMIMETypes"
+   private val CFBundleTypeName                 = "CFBundleTypeName"
+   private val CFBundleTypeOSTypes              = "CFBundleTypeOSTypes"
+   private val CFBundleTypeRole                 = "CFBundleTypeRole"
+   private val LSItemContentTypes               = "LSItemContentTypes"
+   private val LSHandlerRank                    = "LSHandlerRank"
+   private val LSTypeIsPackage                  = "LSTypeIsPackage"
    private val PListVersion                     = "6.0"
    private val BundlePackageTypeAPPL            = "APPL"
-   private val BundleSignatureUnknown           = "????"
 
    private def bundlePackageType = BundlePackageTypeAPPL
-   private def bundleSignature   = BundleSignatureUnknown
 
    private val BundleKey_Java                   = "Java"
    private val JavaKey_MainClass                = "MainClass"
@@ -424,6 +495,12 @@ object AppBundlePlugin extends Plugin {
    private val JavaKey_VMOptions                = "VMOptions"
    private val JavaKey_WorkingDirectory         = "WorkingDirectory"
    private val JavaKey_JVMArchs                 = "JVMArchs"
+
+//   sealed trait HandlerRank { def value: String }
+//   case object HandlerRank_Owner     extends HandlerRank { val value = "Owner"     }
+//   case object HandlerRank_Alternate extends HandlerRank { val value = "Alternate" }
+//   case object HandlerRank_None      extends HandlerRank { val value = "None"      }
+//   case object HandlerRank_Default   extends HandlerRank { val value = "Default"   }
 
    private lazy val JavaDOption  = "-D(.*?)=(.*?)".r
 }
