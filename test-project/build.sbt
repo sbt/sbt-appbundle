@@ -6,11 +6,11 @@ version := "1.0.0"
 
 seq(appbundle.settings: _*)
 
-scalaVersion := "2.9.2"
+scalaVersion := "2.10.0"
 
 libraryDependencies ++= Seq(
-   "de.sciss" %% "scalaosc" % "0.33",
-   "org.scala-lang" % "scala-swing" % "2.9.2"
+   "de.sciss" %% "scalaosc" % "1.1.+",
+   "org.scala-lang" % "scala-swing" % "2.10.0"
 )
 
 retrieveManaged := true

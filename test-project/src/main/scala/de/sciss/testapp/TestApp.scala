@@ -1,13 +1,14 @@
 package de.sciss.testapp
 
-import de.sciss.osc.{Message, UDP}
+import de.sciss.osc._
+import Implicits._
 import swing.{Action, Alignment, Menu, MenuBar, MenuItem, Swing, MainFrame, TextField, Label, GridPanel, SimpleSwingApplication}
 import java.awt.Desktop
 import java.io.File
 
 object TestApp extends SimpleSwingApplication {
-   lazy val rcv   = { val r = UDP.Receiver(); r.connect(); r }
-   lazy val trns  = { val t = UDP.Transmitter( rcv.localSocketAddress ); t.connect(); t }
+   lazy val trns  = { val t = UDP.Transmitter(); t.connect(); t }
+   lazy val rcv   = { val r = UDP.Client(trns.localSocketAddress); r.connect(); r }
 
    lazy val top = new MainFrame {
       title       = sys.props.getOrElse( "APP_TITLE", "Window Title" )
@@ -16,7 +17,7 @@ object TestApp extends SimpleSwingApplication {
          contents += new Label( "Transmit:", null, Alignment.Right )
          contents += new TextField( 12 ) {
             action = Action( "transmit" ) {
-               trns ! Message( "/info", text )
+               trns.send(Message( "/info", text ), rcv.localSocketAddress)
             }
             tooltip = "Check out the help menu for more info!"
          }
@@ -24,7 +25,7 @@ object TestApp extends SimpleSwingApplication {
          contents += new TextField( 12 ) {
             editable = false
             rcv.action = {
-               case (Message( "/info", payload: String ), _) => Swing.onEDT( text = payload )
+               case Message( "/info", payload: String ) => Swing.onEDT( text = payload )
                case _ =>
             }
          }
