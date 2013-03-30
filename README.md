@@ -4,13 +4,13 @@
 
 sbt-appbundle is a plugin for the simple-build-tool (sbt) that adds the `appbundle` task to create a standalone OS X application bundle.
 
-sbt-appbundle is (C)opyright 2011&ndash;2012 by Hanns Holger Rutz. All rights reserved. It is released under the [GNU Lesser General Public License](http://github.com/Sciss/sbt-appbundle/blob/master/licenses/sbt-appbundle-License.txt) and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`.
+sbt-appbundle is (C)opyright 2011&ndash;2013 by Hanns Holger Rutz. All rights reserved. It is released under the [GNU Lesser General Public License](http://github.com/Sciss/sbt-appbundle/blob/master/licenses/sbt-appbundle-License.txt) and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`.
 
 ### usage
 
 To use the plugin in your sbt 0.12 project, add the following line to `project/plugins.sbt`:
 
-    addSbtPlugin("de.sciss" % "sbt-appbundle" % "1.0.0")
+    addSbtPlugin("de.sciss" % "sbt-appbundle" % "1.0.1")
 
 To use it with sbt 0.11.3, use version 0.14:
 
@@ -70,6 +70,7 @@ Document types are created through case class `appbundle.Document` which takes t
 |`extensions`      |`Seq[String]`          |List of file name extensions (without leading period) | `CFBundleTypeExtensions` | `Nil` |
 |`mimeTypes`       |`Seq[String]`          |List of MIME types identifying the document | `CFBundleTypeMIMETypes` | `Nil` |
 |`osTypes`         |`Seq[String]`          |List of OS X four-letter codes identifying the document | `CFBundleTypeOSTypes` | `Nil` |
+|`isPackage`       |`Boolean`              |Whether the document is a directory hidden as a package | `LSTypeIsPackage` | `false` |
 
 Document type example:
 
@@ -87,14 +88,6 @@ Complete example settings:
 As of version 0.14, the default bundle target directory is `target`. If you want to revert to the previous behaviour, putting it into the main directory, the following can be used:
 
     appbundle.target <<= baseDirectory
-
-### creating an IntelliJ IDEA project
-
-If you want to work on the plugin in IntelliJ IDEA, you can set up a project like this: Make sure you have the following contents in `~/.sbt/plugins/build.sbt`:
-
-    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.1.0")
-
-Then to create the IDEA project, run `sbt run`.
 
 ### credits
 

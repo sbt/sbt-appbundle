@@ -4,19 +4,19 @@ name := "sbt-appbundle"
 
 organization := "de.sciss"
 
-version := "1.0.0"
+version := "1.0.1"
 
 scalaVersion := "2.9.2"
 
-crossScalaVersions := Seq( "2.9.2", "2.9.1" )
+crossScalaVersions := Seq("2.9.2", "2.9.1")
 
-scalacOptions := Seq( "-deprecation", "-unchecked" )
+scalacOptions := Seq("-deprecation", "-unchecked")
 
 description := "An sbt plugin to create OS X application bundles"
 
-homepage := Some( url( "https://github.com/Sciss/sbt-appbundle" ))
+homepage <<= name { n => Some(url("https://github.com/sbt/" + n)) }
 
-licenses := Seq( "LGPL v2.1+" -> url( "http://www.gnu.org/licenses/lgpl-2.1.txt" ))
+licenses := Seq("LGPL v2.1+" -> url("http://www.gnu.org/licenses/lgpl-2.1.txt"))
 
 // ---- publishing ----
 
@@ -34,10 +34,10 @@ publishArtifact in Test := false
 
 pomIncludeRepository := { _ => false }
 
-pomExtra :=
+pomExtra <<= name { n =>
 <scm>
-  <url>git@github.com:sbt/sbt-appbundle.git</url>
-  <connection>scm:git:git@github.com:sbt/sbt-appbundle.git</connection>
+  <url>git@github.com:sbt/{n}.git</url>
+  <connection>scm:git:git@github.com:sbt/{n}.git</connection>
 </scm>
 <developers>
    <developer>
@@ -46,33 +46,7 @@ pomExtra :=
       <url>http://www.sciss.de</url>
    </developer>
 </developers>
-
-// // the following is valid for scalasbt.artifactoryonline.com
-//
-// publishTo <<= version { (v: String) =>
-//    Some( if( v.endsWith( "-SNAPSHOT")) {
-//       Resolver.url( "sbt-plugin-snapshots",
-//          url( "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-snapshots/" )
-//       )( Resolver.ivyStylePatterns )
-//    } else {
-//       Resolver.url( "sbt-plugin-releases",
-//          url( "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-releases/" )
-//       )( Resolver.ivyStylePatterns )
-//    })
-// }
-//
-// publishMavenStyle := false
-//
-// credentials += Credentials( Path.userHome / ".ivy2" / ".sbtcredentials" )
-//
-// pomExtra :=
-// <licenses>
-//   <license>
-//     <name>LGPL v2.1+</name>
-//     <url>http://www.gnu.org/licenses/lgpl-2.1.txt</url>
-//     <distribution>repo</distribution>
-//   </license>
-// </licenses>
+}
 
 // publishArtifact in (Compile, packageDoc) := false
 
@@ -80,13 +54,11 @@ pomExtra :=
 
 // ---- ls.implicit.ly ----
 
-seq( lsSettings :_* )
+seq(lsSettings :_*)
 
-(LsKeys.tags in LsKeys.lsync) := Seq( "sbt", "plugin", "application-bundle", "os-x" )
+(LsKeys.tags in LsKeys.lsync) := Seq("sbt", "plugin", "application-bundle", "os-x")
 
 (LsKeys.ghUser in LsKeys.lsync) := Some( "sbt" )
 
-(LsKeys.ghRepo in LsKeys.lsync) := Some( "sbt-appbundle" )
+(LsKeys.ghRepo in LsKeys.lsync) <<= name(Some(_))
 
-// bug in ls -- doesn't find the licenses from global scope
-(licenses in LsKeys.lsync) := Seq( "LGPL v2.1+" -> url( "http://www.gnu.org/licenses/lgpl-2.1.txt" ))
