@@ -1,14 +1,14 @@
-## sbt-appbundle
+# sbt-appbundle
 
-### statement
+## statement
 
 sbt-appbundle is a plugin for the simple-build-tool (sbt) that adds the `appbundle` task to create a standalone OS X application bundle.
 
 sbt-appbundle is (C)opyright 2011&ndash;2013 by Hanns Holger Rutz. All rights reserved. It is released under the [GNU Lesser General Public License](http://github.com/Sciss/sbt-appbundle/blob/master/licenses/sbt-appbundle-License.txt) and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`.
 
-### usage
+## usage
 
-To use the plugin in your sbt 0.12 project, add the following line to `project/plugins.sbt`:
+To use the plugin in your sbt 0.12 or 0.13 project, add the following line to `project/plugins.sbt`:
 
     addSbtPlugin("de.sciss" % "sbt-appbundle" % "1.0.1")
 
@@ -89,6 +89,6 @@ As of version 0.14, the default bundle target directory is `target`. If you want
 
     appbundle.target <<= baseDirectory
 
-### credits
+## credits
 
 The test application icon is in the public domain and was obtained from the [Open Clip Art Library](http://openclipart.org/detail/20299/moon-in-comic-style-by-rg1024-20299)                     .

@@ -28,17 +28,17 @@ package de.sciss.sbt.appbundle
 import sbt._
 import classpath.ClasspathUtilities
 import Keys._
-import Project.{Initialize, Setting}
 import java.io.{FileWriter, Writer, File}
 import collection.breakOut
+import language.implicitConversions
 
 object AppBundlePlugin extends Plugin {
-  // What the *!&?
-  private implicit def wrapTaskKey[T](key: TaskKey[T]): WrappedTaskKey[T] = WrappedTaskKey(key)
-  private final case class WrappedTaskKey[A](key: TaskKey[A]) {
-    def orr[T >: A](rhs: Initialize[Task[T]]): Initialize[Task[T]] =
-      (key.? zipWith rhs)((x, y) => (x :^: y :^: KNil) map Scoped.hf2(_ getOrElse _))
-  }
+  //  // What the *!&?
+  //  private implicit def wrapTaskKey[T](key: TaskKey[T]): WrappedTaskKey[T] = WrappedTaskKey(key)
+  //  private final case class WrappedTaskKey[A](key: TaskKey[A]) {
+  //    def orr[T >: A](rhs: Initialize[Task[T]]): Initialize[Task[T]] =
+  //      (key.? zipWith rhs)((x, y) => (x :^: y :^: KNil) map Scoped.hf2(_ getOrElse _))
+  //  }
 
   private val jarExt = ".jar"
 
@@ -83,10 +83,10 @@ object AppBundlePlugin extends Plugin {
     private val java      = TaskKey[JavaSettings]("_aux_java")
     private val bundle    = TaskKey[BundleSettings]("_aux_bundle")
 
-    val settings = Seq[Setting[_]](
+    val settings = Seq[Def.Setting[_]](
       executable        := file("/System/Library/Frameworks/JavaVM.framework/Versions/Current/Resources/MacOS/JavaApplicationStub"),
-      fullClasspath    <<= (Keys.fullClasspath in Compile) orr (Keys.fullClasspath in Runtime),
-      mainClass        <<= mainClass orr (selectMainClass in Runtime),
+      fullClasspath    <<= Keys.fullClasspath or (Keys.fullClasspath in Runtime), // (Keys.fullClasspath in Compile) orr (Keys.fullClasspath in Runtime),
+      mainClass        <<= mainClass or (mainClass in Runtime), // mainClass orr (selectMainClass in Runtime),
       screenMenu        := true,
       quartz            := None,
       icon              := None,
@@ -173,14 +173,14 @@ object AppBundlePlugin extends Plugin {
   private trait PListValueLow {
     // implicit def fromArray[ A <% PListArray ]( a: A ) : PListValue = a: PListArray
     implicit def fromValueSeq (seq: PListArrayEntries): PListArray = PListArray(seq)
-    implicit def fromStringSeq(seq: Seq[String])      : PListArray = PListArray(seq.map(PListString(_)))
+    implicit def fromStringSeq(seq: Seq[String])      : PListArray = PListArray(seq.map(PListString))
   }
 
   private object PListValue extends PListValueLow {
     implicit def fromString(s: String): PListValue = PListString(s)
     // implicit def fromDict[ A <% PListDict ]( a: A ) : PListValue = a: PListDict
     implicit def fromValueMap (map: PListDictEntries)   : PListDict = PListDict(map)
-    implicit def fromStringMap(map: Map[String, String]): PListDict = PListDict(map.mapValues(PListString(_)))
+    implicit def fromStringMap(map: Map[String, String]): PListDict = PListDict(map.mapValues(PListString))
   }
 
   private sealed trait PListValue {
@@ -229,7 +229,7 @@ object AppBundlePlugin extends Plugin {
     val pkgInfoFile   = contentsDir  / "PkgInfo"
 
     val versionedNamePattern = "(.*?)[-_]\\d.*\\.jar".r // thanks to Don Mackenzie
-    val jarFilter = ClasspathUtilities.isArchive _
+    val jarFilter = ClasspathUtilities.isArchive(_: File)
 
     // ---- application stub ----
     if (!macOSDir.exists()) macOSDir.mkdirs()
@@ -254,7 +254,7 @@ object AppBundlePlugin extends Plugin {
       val vName = inPath.getName
       if (!vName.contains("-javadoc") && !vName.contains("-sources")) {
         val plainName = vName match {
-          case versionedNamePattern(n) if (n != "scala") => n + jarExt
+          case versionedNamePattern(n) if n != "scala" => n + jarExt
           case n => n
         }
         val outPath = javaDir / plainName

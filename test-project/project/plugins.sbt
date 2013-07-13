@@ -1,1 +1,1 @@
-addSbtPlugin("de.sciss" % "sbt-appbundle" % "1.0.1-SNAPSHOT")
+addSbtPlugin("de.sciss" % "sbt-appbundle" % "1.0.1")
