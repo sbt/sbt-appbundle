@@ -6,7 +6,7 @@ organization := "de.sciss"
 
 version := "1.0.1"
 
-scalaVersion in Global := "2.10.2"
+scalaVersion in Global := "2.10.4"
 
 sbtVersion in Global := "0.13.2"
 
