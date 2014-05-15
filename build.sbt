@@ -8,7 +8,7 @@ version := "1.0.1"
 
 scalaVersion in Global := "2.10.2"
 
-sbtVersion in Global := "0.13.0-RC4"
+sbtVersion in Global := "0.13.2"
 
 // crossScalaVersions := Seq("2.9.2", "2.9.1")
 
