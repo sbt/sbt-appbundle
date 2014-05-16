@@ -59,6 +59,7 @@ object AppBundlePlugin extends Plugin {
     val executable        = SettingKey[File]("executable", "Path to the java application stub executable") in Config
     val screenMenu        = SettingKey[Boolean]("screenMenu", "Whether to display the menu bar in the screen top") in Config
     val quartz            = SettingKey[Option[Boolean]]("quartz", "Whether to use the Apple Quartz renderer (true) or the default Java renderer") in Config
+    val highResolution    = SettingKey[Boolean]("highResolution", "Whether the app supports high resolution displays")
     val systemProperties  = TaskKey[Seq[(String, String)]]("systemProperties", "A key-value map passed as Java -D arguments (system properties)") in Config
     val javaVersion       = SettingKey[String]("javaVersion", "Minimum Java version required to launch the application") in Config
     val javaArchs         = SettingKey[Seq[String]]("javaArchs", "Entries for the JVMArchs entry, specifying supported processor architectures in order of their preference") in Config
@@ -89,6 +90,7 @@ object AppBundlePlugin extends Plugin {
       mainClass        <<= mainClass or (mainClass in Runtime), // mainClass orr (selectMainClass in Runtime),
       screenMenu        := true,
       quartz            := None,
+      highResolution    := true,
       icon              := None,
       javaVersion       := "1.6+",
       javaArchs         := Seq.empty,
@@ -115,7 +117,7 @@ object AppBundlePlugin extends Plugin {
       infos            <<= (organization, normalizedName, name, version)(InfoSettings),
       java             <<= (systemProperties, javaOptions, fullClasspath, packageBin in Compile,
         mainClass, javaVersion, javaArchs, workingDirectory) map JavaSettings,
-      bundle           <<= (outputPath, executable, icon, resources, signature, documents) map BundleSettings,
+      bundle           <<= (outputPath, executable, icon, resources, signature, documents, highResolution) map BundleSettings,
       appbundle        <<= (infos, java, bundle, streams) map appbundleTask
     )
 
@@ -126,7 +128,7 @@ object AppBundlePlugin extends Plugin {
                                   javaVersion: String, javaArchs: Seq[String], workingDirectory: Option[File])
 
     final case class BundleSettings(path: File, executable: File, iconOption: Option[File], resources: Seq[File],
-                                    signature: String, documents: Seq[Document])
+                                    signature: String, documents: Seq[Document], highResolution: Boolean)
 
     // TODO: LSItemContentTypes, LSTypeIsPackage
     object Document {
@@ -359,6 +361,7 @@ object AppBundlePlugin extends Plugin {
       CFBundleSignature               -> signature,
       CFBundleVersion                 -> iterVersion,
       CFBundleAllowMixedLocalizations -> true.toString,
+      NSHighResolutionCapable         -> highResolution.toString,
       BundleKey_Java                  -> jEntries
     )
 
@@ -495,6 +498,7 @@ object AppBundlePlugin extends Plugin {
   private val LSItemContentTypes              = "LSItemContentTypes"
   private val LSHandlerRank                   = "LSHandlerRank"
   private val LSTypeIsPackage                 = "LSTypeIsPackage"
+  private val NSHighResolutionCapable         = "NSHighResolutionCapable"
   private val PListVersion                    = "6.0"
   private val BundlePackageTypeAPPL           = "APPL"
 

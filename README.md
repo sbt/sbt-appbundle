@@ -41,6 +41,7 @@ And can then configure the `appbundle` task. Without any additional configuratio
 |`systemProperties`|`Seq[(String, String)]`|A key-value map passed as Java `-D` arguments (system properties) | extracts `-D` entries from `javaOptions` and adds entries for `screenMenu` and `quartz` |
 |`screenMenu`      |`Boolean`              |Whether to display the menu bar in the screen top | `true`
 |`quartz`          |`Option[Boolean]`      |Whether to use the Apple Quartz renderer (`true`) or the default Java renderer | `None`. In this case Quartz is used for Java 1.5, but not for Java 1.6+ |
+|`highResolution`  |`Boolean`              |Whether the app supports high resolution displays | `true`
 |`icon`            |`Option[File]`         |Image or icon file which is used as application icon. A native `.icns` file will be copied unmodified to the bundle, while an image (such as `.png`) will be converted through the OS X shell utility `sips`, scaling the image to the next supported size, which is either of 16, 32, 48, 128, 256, or 512 pixels width/height | `None` |
 |`resources`       |`Seq[File]`            |Any files or directories which should be copied directly into `Contents/Resources` | empty |
 |`workingDirectory`|`Option[File]`         |The current directory as seen from the Java runtime | `None` (directory in which the bundle resides (outside the app bundle) |
