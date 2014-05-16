@@ -1,14 +1,14 @@
-## sbt-appbundle
+# sbt-appbundle
 
-### statement
+## statement
 
 sbt-appbundle is a plugin for the simple-build-tool (sbt) that adds the `appbundle` task to create a standalone OS X application bundle.
 
 sbt-appbundle is (C)opyright 2011&ndash;2013 by Hanns Holger Rutz. All rights reserved. It is released under the [GNU Lesser General Public License](http://github.com/Sciss/sbt-appbundle/blob/master/licenses/sbt-appbundle-License.txt) and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`.
 
-### usage
+## usage
 
-To use the plugin in your sbt 0.12 project, add the following line to `project/plugins.sbt`:
+To use the plugin in your sbt 0.12 or 0.13 project, add the following line to `project/plugins.sbt`:
 
     addSbtPlugin("de.sciss" % "sbt-appbundle" % "1.0.1")
 
@@ -41,6 +41,7 @@ And can then configure the `appbundle` task. Without any additional configuratio
 |`systemProperties`|`Seq[(String, String)]`|A key-value map passed as Java `-D` arguments (system properties) | extracts `-D` entries from `javaOptions` and adds entries for `screenMenu` and `quartz` |
 |`screenMenu`      |`Boolean`              |Whether to display the menu bar in the screen top | `true`
 |`quartz`          |`Option[Boolean]`      |Whether to use the Apple Quartz renderer (`true`) or the default Java renderer | `None`. In this case Quartz is used for Java 1.5, but not for Java 1.6+ |
+|`highResolution`  |`Boolean`              |Whether the app supports high resolution displays | `true`
 |`icon`            |`Option[File]`         |Image or icon file which is used as application icon. A native `.icns` file will be copied unmodified to the bundle, while an image (such as `.png`) will be converted through the OS X shell utility `sips`, scaling the image to the next supported size, which is either of 16, 32, 48, 128, 256, or 512 pixels width/height | `None` |
 |`resources`       |`Seq[File]`            |Any files or directories which should be copied directly into `Contents/Resources` | empty |
 |`workingDirectory`|`Option[File]`         |The current directory as seen from the Java runtime | `None` (directory in which the bundle resides (outside the app bundle) |
@@ -89,6 +90,6 @@ As of version 0.14, the default bundle target directory is `target`. If you want
 
     appbundle.target <<= baseDirectory
 
-### credits
+## credits
 
 The test application icon is in the public domain and was obtained from the [Open Clip Art Library](http://openclipart.org/detail/20299/moon-in-comic-style-by-rg1024-20299)                     .

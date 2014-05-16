@@ -28,17 +28,17 @@ package de.sciss.sbt.appbundle
 import sbt._
 import classpath.ClasspathUtilities
 import Keys._
-import Project.{Initialize, Setting}
 import java.io.{FileWriter, Writer, File}
 import collection.breakOut
+import language.implicitConversions
 
 object AppBundlePlugin extends Plugin {
-  // What the *!&?
-  private implicit def wrapTaskKey[T](key: TaskKey[T]): WrappedTaskKey[T] = WrappedTaskKey(key)
-  private final case class WrappedTaskKey[A](key: TaskKey[A]) {
-    def orr[T >: A](rhs: Initialize[Task[T]]): Initialize[Task[T]] =
-      (key.? zipWith rhs)((x, y) => (x :^: y :^: KNil) map Scoped.hf2(_ getOrElse _))
-  }
+  //  // What the *!&?
+  //  private implicit def wrapTaskKey[T](key: TaskKey[T]): WrappedTaskKey[T] = WrappedTaskKey(key)
+  //  private final case class WrappedTaskKey[A](key: TaskKey[A]) {
+  //    def orr[T >: A](rhs: Initialize[Task[T]]): Initialize[Task[T]] =
+  //      (key.? zipWith rhs)((x, y) => (x :^: y :^: KNil) map Scoped.hf2(_ getOrElse _))
+  //  }
 
   private val jarExt = ".jar"
 
@@ -59,6 +59,7 @@ object AppBundlePlugin extends Plugin {
     val executable        = SettingKey[File]("executable", "Path to the java application stub executable") in Config
     val screenMenu        = SettingKey[Boolean]("screenMenu", "Whether to display the menu bar in the screen top") in Config
     val quartz            = SettingKey[Option[Boolean]]("quartz", "Whether to use the Apple Quartz renderer (true) or the default Java renderer") in Config
+    val highResolution    = SettingKey[Boolean]("highResolution", "Whether the app supports high resolution displays")
     val systemProperties  = TaskKey[Seq[(String, String)]]("systemProperties", "A key-value map passed as Java -D arguments (system properties)") in Config
     val javaVersion       = SettingKey[String]("javaVersion", "Minimum Java version required to launch the application") in Config
     val javaArchs         = SettingKey[Seq[String]]("javaArchs", "Entries for the JVMArchs entry, specifying supported processor architectures in order of their preference") in Config
@@ -83,12 +84,13 @@ object AppBundlePlugin extends Plugin {
     private val java      = TaskKey[JavaSettings]("_aux_java")
     private val bundle    = TaskKey[BundleSettings]("_aux_bundle")
 
-    val settings = Seq[Setting[_]](
+    val settings = Seq[Def.Setting[_]](
       executable        := file("/System/Library/Frameworks/JavaVM.framework/Versions/Current/Resources/MacOS/JavaApplicationStub"),
-      fullClasspath    <<= (Keys.fullClasspath in Compile) orr (Keys.fullClasspath in Runtime),
-      mainClass        <<= mainClass orr (selectMainClass in Runtime),
+      fullClasspath    <<= Keys.fullClasspath or (Keys.fullClasspath in Runtime), // (Keys.fullClasspath in Compile) orr (Keys.fullClasspath in Runtime),
+      mainClass        <<= mainClass or (mainClass in Runtime), // mainClass orr (selectMainClass in Runtime),
       screenMenu        := true,
       quartz            := None,
+      highResolution    := true,
       icon              := None,
       javaVersion       := "1.6+",
       javaArchs         := Seq.empty,
@@ -115,7 +117,7 @@ object AppBundlePlugin extends Plugin {
       infos            <<= (organization, normalizedName, name, version)(InfoSettings),
       java             <<= (systemProperties, javaOptions, fullClasspath, packageBin in Compile,
         mainClass, javaVersion, javaArchs, workingDirectory) map JavaSettings,
-      bundle           <<= (outputPath, executable, icon, resources, signature, documents) map BundleSettings,
+      bundle           <<= (outputPath, executable, icon, resources, signature, documents, highResolution) map BundleSettings,
       appbundle        <<= (infos, java, bundle, streams) map appbundleTask
     )
 
@@ -126,7 +128,7 @@ object AppBundlePlugin extends Plugin {
                                   javaVersion: String, javaArchs: Seq[String], workingDirectory: Option[File])
 
     final case class BundleSettings(path: File, executable: File, iconOption: Option[File], resources: Seq[File],
-                                    signature: String, documents: Seq[Document])
+                                    signature: String, documents: Seq[Document], highResolution: Boolean)
 
     // TODO: LSItemContentTypes, LSTypeIsPackage
     object Document {
@@ -173,14 +175,14 @@ object AppBundlePlugin extends Plugin {
   private trait PListValueLow {
     // implicit def fromArray[ A <% PListArray ]( a: A ) : PListValue = a: PListArray
     implicit def fromValueSeq (seq: PListArrayEntries): PListArray = PListArray(seq)
-    implicit def fromStringSeq(seq: Seq[String])      : PListArray = PListArray(seq.map(PListString(_)))
+    implicit def fromStringSeq(seq: Seq[String])      : PListArray = PListArray(seq.map(PListString))
   }
 
   private object PListValue extends PListValueLow {
     implicit def fromString(s: String): PListValue = PListString(s)
     // implicit def fromDict[ A <% PListDict ]( a: A ) : PListValue = a: PListDict
     implicit def fromValueMap (map: PListDictEntries)   : PListDict = PListDict(map)
-    implicit def fromStringMap(map: Map[String, String]): PListDict = PListDict(map.mapValues(PListString(_)))
+    implicit def fromStringMap(map: Map[String, String]): PListDict = PListDict(map.mapValues(PListString))
   }
 
   private sealed trait PListValue {
@@ -229,7 +231,7 @@ object AppBundlePlugin extends Plugin {
     val pkgInfoFile   = contentsDir  / "PkgInfo"
 
     val versionedNamePattern = "(.*?)[-_]\\d.*\\.jar".r // thanks to Don Mackenzie
-    val jarFilter = ClasspathUtilities.isArchive _
+    val jarFilter = ClasspathUtilities.isArchive(_: File)
 
     // ---- application stub ----
     if (!macOSDir.exists()) macOSDir.mkdirs()
@@ -254,7 +256,7 @@ object AppBundlePlugin extends Plugin {
       val vName = inPath.getName
       if (!vName.contains("-javadoc") && !vName.contains("-sources")) {
         val plainName = vName match {
-          case versionedNamePattern(n) if (n != "scala") => n + jarExt
+          case versionedNamePattern(n) if n != "scala" => n + jarExt
           case n => n
         }
         val outPath = javaDir / plainName
@@ -359,6 +361,7 @@ object AppBundlePlugin extends Plugin {
       CFBundleSignature               -> signature,
       CFBundleVersion                 -> iterVersion,
       CFBundleAllowMixedLocalizations -> true.toString,
+      NSHighResolutionCapable         -> highResolution.toString,
       BundleKey_Java                  -> jEntries
     )
 
@@ -495,6 +498,7 @@ object AppBundlePlugin extends Plugin {
   private val LSItemContentTypes              = "LSItemContentTypes"
   private val LSHandlerRank                   = "LSHandlerRank"
   private val LSTypeIsPackage                 = "LSTypeIsPackage"
+  private val NSHighResolutionCapable         = "NSHighResolutionCapable"
   private val PListVersion                    = "6.0"
   private val BundlePackageTypeAPPL           = "APPL"
 

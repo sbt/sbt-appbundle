@@ -6,7 +6,9 @@ version := "1.0.0"
 
 seq(appbundle.settings: _*)
 
-scalaVersion := "2.10.1"
+scalaVersion in Global := "2.10.2"
+
+sbtVersion in Global := "0.13.0-RC2"
 
 libraryDependencies += "de.sciss" %% "scalaosc" % "1.1.+"
 
