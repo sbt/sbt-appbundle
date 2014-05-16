@@ -4,19 +4,19 @@
 
 sbt-appbundle is a plugin for the simple-build-tool (sbt) that adds the `appbundle` task to create a standalone OS X application bundle.
 
-sbt-appbundle is (C)opyright 2011&ndash;2013 by Hanns Holger Rutz. All rights reserved. It is released under the [GNU Lesser General Public License](http://github.com/Sciss/sbt-appbundle/blob/master/licenses/sbt-appbundle-License.txt) and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`.
+sbt-appbundle is (C)opyright 2011&ndash;2014 by Hanns Holger Rutz. All rights reserved. It is released under the [GNU Lesser General Public License](http://github.com/Sciss/sbt-appbundle/blob/master/licenses/sbt-appbundle-License.txt) and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`.
 
 ## usage
 
 To use the plugin in your sbt 0.12 or 0.13 project, add the following line to `project/plugins.sbt`:
 
-    addSbtPlugin("de.sciss" % "sbt-appbundle" % "1.0.1")
+    addSbtPlugin("de.sciss" % "sbt-appbundle" % "1.0.2")
 
 To use it with sbt 0.11.3, use version 0.14:
 
     addSbtPlugin("de.sciss" % "sbt-appbundle" % "0.14")
 
-sbt-appbundle is now hosted on maven central (sonatype), so it should be found automatically.
+sbt-appbundle is now hosted on Maven Central (Sonatype), so it should be found automatically.
 
 You can find an example of its usage in `test-project`. Basically you add the following statement to the beginning of the main `build.sbt`:
 
@@ -39,9 +39,9 @@ And can then configure the `appbundle` task. Without any additional configuratio
 |`javaArchs`       |`Seq[String]`          |If not empty, the supported processor architectures in order of their preference | empty |
 |`javaOptions`     |`Seq[String]`          |Options passed to the `java` command when launching the application | `javaOptions` in main scope |
 |`systemProperties`|`Seq[(String, String)]`|A key-value map passed as Java `-D` arguments (system properties) | extracts `-D` entries from `javaOptions` and adds entries for `screenMenu` and `quartz` |
-|`screenMenu`      |`Boolean`              |Whether to display the menu bar in the screen top | `true`
+|`screenMenu`      |`Boolean`              |Whether to display the menu bar in the screen top | `true` |
 |`quartz`          |`Option[Boolean]`      |Whether to use the Apple Quartz renderer (`true`) or the default Java renderer | `None`. In this case Quartz is used for Java 1.5, but not for Java 1.6+ |
-|`highResolution`  |`Boolean`              |Whether the app supports high resolution displays | `true`
+|`highResolution`  |`Boolean`              |Whether the app supports high resolution displays | `true` |
 |`icon`            |`Option[File]`         |Image or icon file which is used as application icon. A native `.icns` file will be copied unmodified to the bundle, while an image (such as `.png`) will be converted through the OS X shell utility `sips`, scaling the image to the next supported size, which is either of 16, 32, 48, 128, 256, or 512 pixels width/height | `None` |
 |`resources`       |`Seq[File]`            |Any files or directories which should be copied directly into `Contents/Resources` | empty |
 |`workingDirectory`|`Option[File]`         |The current directory as seen from the Java runtime | `None` (directory in which the bundle resides (outside the app bundle) |
@@ -93,3 +93,5 @@ As of version 0.14, the default bundle target directory is `target`. If you want
 ## credits
 
 The test application icon is in the public domain and was obtained from the [Open Clip Art Library](http://openclipart.org/detail/20299/moon-in-comic-style-by-rg1024-20299)                     .
+
+The project has received contributions by: Christian Hoffmeister

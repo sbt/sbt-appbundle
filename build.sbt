@@ -1,36 +1,35 @@
-sbtPlugin := true
+sbtPlugin              := true
 
-name := "sbt-appbundle"
+name                   := "sbt-appbundle"
 
-organization := "de.sciss"
+organization           := "de.sciss"
 
-version := "1.0.1"
+version                := "1.0.2"
 
 scalaVersion in Global := "2.10.4"
 
-sbtVersion in Global := "0.13.2"
+sbtVersion in Global   := "0.13.2"
 
 // crossScalaVersions := Seq("2.9.2", "2.9.1")
 
-scalacOptions := Seq("-deprecation", "-unchecked", "-feature")
+scalacOptions         := Seq("-deprecation", "-unchecked", "-feature", "-Xfuture")
 
-description := "An sbt plugin to create OS X application bundles"
+description           := "An sbt plugin to create OS X application bundles"
 
-homepage <<= name { n => Some(url("https://github.com/sbt/" + n)) }
+homepage              := Some(url("https://github.com/sbt/" + name.value))
 
-licenses := Seq("LGPL v2.1+" -> url("http://www.gnu.org/licenses/lgpl-2.1.txt"))
+licenses              := Seq("LGPL v2.1+" -> url("http://www.gnu.org/licenses/lgpl-2.1.txt"))
 
 // ---- publishing ----
 
 publishMavenStyle := true
 
-publishTo <<= version { v =>
-  Some(if (v endsWith "-SNAPSHOT")
+publishTo :=
+  Some(if (version.value endsWith "-SNAPSHOT")
     "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
   else
     "Sonatype Releases"  at "https://oss.sonatype.org/service/local/staging/deploy/maven2"
   )
-}
 
 publishArtifact in Test := false
 
@@ -58,9 +57,9 @@ pomExtra <<= name { n =>
 
 seq(lsSettings :_*)
 
-(LsKeys.tags in LsKeys.lsync) := Seq("sbt", "plugin", "application-bundle", "os-x")
+(LsKeys.tags   in LsKeys.lsync) := Seq("sbt", "plugin", "application-bundle", "os-x")
 
-(LsKeys.ghUser in LsKeys.lsync) := Some( "sbt" )
+(LsKeys.ghUser in LsKeys.lsync) := Some("sbt")
 
-(LsKeys.ghRepo in LsKeys.lsync) <<= name(Some(_))
+(LsKeys.ghRepo in LsKeys.lsync) := Some(name.value)
 
