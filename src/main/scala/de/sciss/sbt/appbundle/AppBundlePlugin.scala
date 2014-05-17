@@ -100,41 +100,10 @@ object AppBundlePlugin extends Plugin {
       bundle           <<= (outputPath, executable, icon, resources, signature, documents, highResolution) map BundleSettings,
       appbundle        <<= (infos, java, bundle, streams) map appbundleTask
     )
-
-    final case class InfoSettings(organization: String, normalizedName: String, name: String, version: String)
-
-    final case class JavaSettings(systemProperties: Seq[(String, String)], javaOptions: Seq[String],
-                                  classpath: Classpath, jarFile: File, mainClassOption: Option[String],
-                                  javaVersion: String, javaArchs: Seq[String], workingDirectory: Option[File])
-
-    final case class BundleSettings(path: File, executable: File, iconOption: Option[File], resources: Seq[File],
-                                    signature: String, documents: Seq[Document], highResolution: Boolean)
-
-    // TODO: LSItemContentTypes, LSTypeIsPackage
-    object Document {
-      sealed trait Role { def valueOption: Option[ String ]}
-      sealed trait Rank { def valueOption: Option[ String ]}
-
-      case object Editor extends Role { val valueOption = Some("Editor")}
-      case object Viewer extends Role { val valueOption = Some("Viewer")}
-      case object Shell  extends Role { val valueOption = Some("Shell" )}
-
-      case object Owner     extends Rank { val valueOption = Some("Owner"    )}
-      case object Alternate extends Rank { val valueOption = Some("Alternate")}
-      case object Default   extends Rank { val valueOption = Some("Default"  )}
-
-      case object None      extends Role with Rank { val valueOption = Some( "None" )}
-      case object Undefined extends Role with Rank { val valueOption = Option.empty }
-    }
-    final case class Document(name: String, role: Document.Role = Document.Undefined,
-                              rank: Document.Rank = Document.Undefined,
-                              icon: Option[File] = scala.None, extensions: Seq[String] = Nil,
-                              mimeTypes: Seq[String] = Nil, osTypes: Seq[String] = Nil,
-                              isPackage: Boolean = false)
   }
 
-  private def appbundleTask(infos: appbundle.InfoSettings, java: appbundle.JavaSettings,
-                            bundle: appbundle.BundleSettings, streams: TaskStreams) {
+  private def appbundleTask(infos: InfoSettings, java: JavaSettings,
+                            bundle: BundleSettings, streams: TaskStreams) {
     import streams.log
     import infos._
     import java._
