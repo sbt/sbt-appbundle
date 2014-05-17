@@ -23,10 +23,27 @@ object PList {
   implicit def valueMapToPListDict(map: Map[String, PListValue]): PListDict = PListDict(map)
   implicit def stringSeqToPListArray(seq: Seq[String]): PListArray = PListArray(seq.map(PListString))
   implicit def valueSeqToPListArray(seq: Seq[PListValue]): PListArray = PListArray(seq)
+
+  // helper functions that either return a non none PListValue or PListNull
+  def arrayOrNull(seq: Seq[String]): PListValue =
+    if (seq.nonEmpty) PListArray(seq.map(PListString)) else PListNull
+  def arrayOrNull[T](seq: Seq[T], conv: T => String): PListValue =
+    if (seq.nonEmpty) PListArray(seq.map(i => PListString(conv(i)))) else PListNull
+
+  // helper functions that either return a non empty PListArray or PListNull
+  def valueOrNull(value: Option[String]): PListValue =
+    if (value.isDefined) PListString(value.get) else PListNull
+  def valueOrNull[T](value: Option[T], conv: T => String): PListValue =
+    if (value.isDefined) PListString(conv(value.get)) else PListNull
 }
 
 sealed trait PListValue {
   def toXML: xml.Node
+}
+
+/** Entries with value PListNull are ommitted. */
+case object PListNull extends PListValue {
+  def toXML = ???
 }
 
 case class PListBoolean(value: Boolean) extends PListValue {
@@ -38,11 +55,11 @@ case class PListString(value: String) extends PListValue {
 }
 
 case class PListDict(map: Map[String, PListValue]) extends PListValue {
-  def toXML = <dict>{map.map {
+  def toXML = <dict>{map.filter(_._2 != PListNull).map {
     case (key, value) => <key>{key}</key> ++ value.toXML
   }}</dict>
 }
 
 case class PListArray(seq: Seq[PListValue]) extends PListValue {
-  def toXML = <array>{seq.map(_.toXML)}</array>
+  def toXML = <array>{seq.filter(_ != PListNull).map(_.toXML)}</array>
 }

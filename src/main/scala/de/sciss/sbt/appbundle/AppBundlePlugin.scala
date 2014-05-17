@@ -33,6 +33,10 @@ object AppBundlePlugin extends Plugin {
   private val jarExt = ".jar"
 
   object appbundle {
+    val BundleVar_JavaRoot              = "$JAVAROOT"
+    val BundleVar_AppPackage            = "$APP_PACKAGE"
+    val BundleVar_UserHome              = "$USER_HOME"
+
     val Config            = config("appbundle")
 
     val appbundle         = TaskKey[Unit]("appbundle")
@@ -190,34 +194,46 @@ object AppBundlePlugin extends Plugin {
     }
 
     // ---- info.plist ----
-    val javaRootFile    = file(BundleVar_JavaRoot)
+    val iterVersion     = version // XXX TODO: append incremental build number
+    val bundleID        = organization + "." + normalizedName
+    val javaRootFile    = file(appbundle.BundleVar_JavaRoot)
     val bundleClassPath = outFiles.map(javaRootFile / _.name)
     val vmOptions       = javaOptions.filterNot {
       case JavaDOption(_, _)  => true // they have been already passed to Properties
       case _                  => false
     }
 
-    val jEntries0 = Map[String, PListValue](
-      JavaKey_MainClass  -> mainClass,
-      JavaKey_Properties -> systemProperties.toMap[String, String],
-      JavaKey_ClassPath  -> bundleClassPath.map(_.toString),
-      JavaKey_JVMVersion -> javaVersion,
-      JavaKey_VMOptions  -> vmOptions
+    val documentEntries = documents.map { doc =>
+      Map[String, PListValue](
+        CFBundleTypeName -> doc.name,
+        CFBundleTypeRole -> valueOrNull(doc.role.valueOption),
+        LSHandlerRank -> valueOrNull(doc.rank.valueOption),
+        CFBundleTypeExtensions -> arrayOrNull(doc.extensions),
+        CFBundleTypeIconFile -> { doc.icon match {
+          case Some(imageFile) =>
+            val iconFile = resourcesDir / ("doc_" + imageFile.base + ".icns")
+            IconHelper.convertToICNS(imageFile, iconFile)
+            iconFile.name
+          case _ =>
+            PListNull
+        }},
+        CFBundleTypeMIMETypes -> arrayOrNull(doc.mimeTypes),
+        CFBundleTypeOSTypes -> arrayOrNull(doc.osTypes), // TODO assert that OS names are exactly 4 characters
+        LSTypeIsPackage -> true
+      )
+    }.foldLeft(Map.empty[String, PListValue])(_ ++ _)
+
+    val javaEntries = Map[String, PListValue](
+      JavaKey_MainClass        -> mainClass,
+      JavaKey_Properties       -> systemProperties.toMap[String, String],
+      JavaKey_ClassPath        -> bundleClassPath.map(_.toString),
+      JavaKey_JVMVersion       -> javaVersion,
+      JavaKey_VMOptions        -> vmOptions,
+      JavaKey_JVMArchs         -> arrayOrNull(javaArchs),
+      JavaKey_WorkingDirectory -> valueOrNull(workingDirectory, (wd: File) => wd.getPath)
     )
 
-    val jEntries1: Map[String, PListValue] = if (javaArchs.nonEmpty) {
-      jEntries0 + (JavaKey_JVMArchs -> javaArchs)
-    } else jEntries0
-
-    val jEntries: PListDictEntries = workingDirectory match {
-      case Some(value) => jEntries1 + (JavaKey_WorkingDirectory -> value.getPath)
-      case _ => jEntries1
-    }
-
-    val iterVersion = version // XXX TODO: append incremental build number
-    val bundleID    = organization + "." + normalizedName
-
-    var entries: PListDictEntries = Map(
+    val entries = Map[String, PListValue](
       CFBundleInfoDictionaryVersion   -> PListVersion,
       CFBundleIdentifier              -> bundleID,
       CFBundleName                    -> name,
@@ -228,47 +244,16 @@ object AppBundlePlugin extends Plugin {
       CFBundleVersion                 -> iterVersion,
       CFBundleAllowMixedLocalizations -> true,
       NSHighResolutionCapable         -> highResolution,
-      BundleKey_Java                  -> jEntries
-    )
-
-    iconOption.foreach { imageFile =>
-      val iconFile = resourcesDir / "application.icns"
-      IconHelper.convertToICNS(imageFile, iconFile)
-      entries += (CFBundleIconFile -> iconFile.name)
-    }
-
-    if (documents.nonEmpty) entries += (CFBundleDocumentTypes -> PListArray(
-      documents.map { doc =>
-        var d: PListDictEntries = Map(CFBundleTypeName -> doc.name)
-        doc.role.valueOption.foreach { roleValue =>
-          d += CFBundleTypeRole -> roleValue
-        }
-        doc.rank.valueOption.foreach { rankValue =>
-          d += LSHandlerRank -> rankValue
-        }
-        if (doc.extensions.nonEmpty) {
-          d += CFBundleTypeExtensions -> PListArray(doc.extensions.map(ext => ext: PListValue))
-        }
-        doc.icon.foreach { imageFile =>
-          val iconFile = resourcesDir / ("doc_" + imageFile.base + ".icns")
+      BundleKey_Java                  -> javaEntries,
+      CFBundleIconFile -> (iconOption match {
+        case Some(imageFile) =>
+          val iconFile = resourcesDir / "application.icns"
           IconHelper.convertToICNS(imageFile, iconFile)
-          d += (CFBundleTypeIconFile -> iconFile.name)
-        }
-        if (doc.mimeTypes.nonEmpty) {
-          d += CFBundleTypeMIMETypes -> PListArray(doc.mimeTypes.map(tpe => tpe: PListValue))
-        }
-        if (doc.osTypes.nonEmpty) {
-          d += CFBundleTypeOSTypes -> PListArray(doc.osTypes.map { tpe =>
-            require(tpe.length == 4, "OS Types must be composed of exactly four characters (failed: " + tpe + ")")
-            tpe: PListValue
-          })
-        }
-        if (doc.isPackage) {
-          d += LSTypeIsPackage -> true.toString
-        }
-        PListDict(d)
-      }
-    ))
+          iconFile.name
+        case _ =>
+          PListNull
+      })
+    ) ++ documentEntries
 
     //println( "ENTRIES = " + entries )
 
