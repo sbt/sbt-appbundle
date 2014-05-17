@@ -31,10 +31,6 @@ object Constants {
 
   val BundleKey_Java                  = "Java"
 
-  val BundleVar_JavaRoot              = "$JAVAROOT"
-  val BundleVar_AppPackage            = "$APP_PACKAGE"
-  val BundleVar_UserHome              = "$USER_HOME"
-
   val JavaKey_MainClass               = "MainClass"
   val JavaKey_Properties              = "Properties"
   val JavaKey_ClassPath               = "ClassPath"
