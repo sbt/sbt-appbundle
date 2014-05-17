@@ -20,6 +20,7 @@ import collection.breakOut
 import language.implicitConversions
 
 object AppBundlePlugin extends Plugin {
+  import Constants._
   import PList._
 
   //  // What the *!&?
@@ -32,16 +33,6 @@ object AppBundlePlugin extends Plugin {
   private val jarExt = ".jar"
 
   object appbundle {
-    val BundleVar_JavaRoot    = "$JAVAROOT"
-    val BundleVar_AppPackage  = "$APP_PACKAGE"
-    val BundleVar_UserHome    = "$USER_HOME"
-
-    val JavaArch_i386         = "i386"
-    val JavaArch_x86_64       = "x86_64"
-    val JavaArch_ppc          = "ppc"
-
-    val Signature_Unknown     = "????"
-
     val Config            = config("appbundle")
 
     val appbundle         = TaskKey[Unit]("appbundle")
@@ -255,7 +246,7 @@ object AppBundlePlugin extends Plugin {
     }
 
     // ---- info.plist ----
-    val javaRootFile    = file(appbundle.BundleVar_JavaRoot)
+    val javaRootFile    = file(BundleVar_JavaRoot)
     val bundleClassPath = outFiles.map(javaRootFile / _.name)
     val vmOptions       = javaOptions.filterNot {
       case JavaDOption(_, _)  => true // they have been already passed to Properties
@@ -353,102 +344,9 @@ object AppBundlePlugin extends Plugin {
 
     // ---- done ----
     log.info("Done bundling.")
-
-    // WorkingDirectory (default: $APP_PACKAGE)
-
-    // Arguments (A string or array of strings)
-
-    // Variables: $JAVAROOT, $APP_PACKAGE, $USER_HOME
-
-    // useful existing keys: description, homepage, javaOptions, javacOptions, licenses
-    // mainClass, normalizedName, moduleName (= normalizedName???), organization
-    // organizationHomepage, organizationName, projectID (= moduleID:version???)
-
-    // ModuleInfo (nameFormal: String, description: String, homepage: Option[URL],
-    // startYear: Option[Int], licenses: Seq[(String, URL)], organizationName: String, organizationHomepage: Option[URL])
-
-    // selectMainClass
-    // startYear
-    // timingFormat
-    // version
-
-    // CFBundleDevelopmentRegion --> (Recommended), e.g. English
-    // CFBundleDisplayName --> "If you do not intend to localize your bundle, do not include this key in your Info.plist file."
-    // CFBundleDocumentTypes --> would be nice to support this eventually
-    // CFAppleHelpAnchor
-    // CFBundleIconFile --> Mac OS X; "The filename you specify does not need to include the extension, although it may.
-    // The system looks for the icon file in the main resources directory of the bundle."
-    // CFBundleIconFiles --> iOS
-    // CFBundleIcons --> iOS
-    // CFBundleURLTypes
   }
 
-  // apple.laf.useScreenMenuBar (default false)
-  // apple.awt.brushMetalLook (default false)
-  // apple.awt.fileDialogForDirectories (default false)
-  // apple.awt.UIElement (default false)
-
-  // apple.awt.fakefullscreen (default false)
-  // apple.awt.fullscreencapturealldisplays (false)
-  // apple.awt.fullscreenhidecursor (default true)
-  // apple.awt.fullscreenusefade (default false)
-
-  // apple.awt.antialiasing (default on? for aqua)
-  // apple.awt.textantialiasing (default on? for aqua)
-  // apple.awt.rendering = speed | quality
-  // apple.awt.interpolation
-  // apple.awt.fractionalmetrics
-
-  // apple.awt.graphics.OptimizeShapes
-  // apple.awt.graphics.EnableLazyDrawing
-  // apple.awt.graphics.EnableLazyDrawingQueueSize
-  // apple.awt.graphics.EnableQ2DX
-  // apple.awt.graphics.EnableDeferredUpdates
-
-  // apple.awt.graphics.UseQuartz (default true for Java 1.5, false for Java 1.6)
-
-  // apple.awt.graphics.EnableLazyPixelConversion
-
-  private val CFBundleInfoDictionaryVersion   = "CFBundleInfoDictionaryVersion"
-  private val CFBundleName                    = "CFBundleName"
-  private val CFBundlePackageType             = "CFBundlePackageType"
-  private val CFBundleAllowMixedLocalizations = "CFBundleAllowMixedLocalizations"
-  private val CFBundleExecutable              = "CFBundleExecutable"
-  private val CFBundleIconFile                = "CFBundleIconFile"
-  private val CFBundleIdentifier              = "CFBundleIdentifier"
-  private val CFBundleShortVersionString      = "CFBundleShortVersionString"
-  private val CFBundleSignature               = "CFBundleSignature"
-  private val CFBundleVersion                 = "CFBundleVersion"
-  private val CFBundleDocumentTypes           = "CFBundleDocumentTypes"
-  private val CFBundleTypeExtensions          = "CFBundleTypeExtensions"
-  private val CFBundleTypeIconFile            = "CFBundleTypeIconFile"
-  private val CFBundleTypeMIMETypes           = "CFBundleTypeMIMETypes"
-  private val CFBundleTypeName                = "CFBundleTypeName"
-  private val CFBundleTypeOSTypes             = "CFBundleTypeOSTypes"
-  private val CFBundleTypeRole                = "CFBundleTypeRole"
-  private val LSItemContentTypes              = "LSItemContentTypes"
-  private val LSHandlerRank                   = "LSHandlerRank"
-  private val LSTypeIsPackage                 = "LSTypeIsPackage"
-  private val NSHighResolutionCapable         = "NSHighResolutionCapable"
-  private val PListVersion                    = "6.0"
-  private val BundlePackageTypeAPPL           = "APPL"
-
-  private def bundlePackageType               = BundlePackageTypeAPPL
-
-  private val BundleKey_Java                  = "Java"
-  private val JavaKey_MainClass               = "MainClass"
-  private val JavaKey_Properties              = "Properties"
-  private val JavaKey_ClassPath               = "ClassPath"
-  private val JavaKey_JVMVersion              = "JVMVersion"
-  private val JavaKey_VMOptions               = "VMOptions"
-  private val JavaKey_WorkingDirectory        = "WorkingDirectory"
-  private val JavaKey_JVMArchs                = "JVMArchs"
-
-  //   sealed trait HandlerRank { def value: String }
-  //   case object HandlerRank_Owner     extends HandlerRank { val value = "Owner"     }
-  //   case object HandlerRank_Alternate extends HandlerRank { val value = "Alternate" }
-  //   case object HandlerRank_None      extends HandlerRank { val value = "None"      }
-  //   case object HandlerRank_Default   extends HandlerRank { val value = "Default"   }
+  def bundlePackageType = BundlePackageTypeAPPL
 
   private val JavaDOption = "-D(.*?)=(.*?)".r
 }
