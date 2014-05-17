@@ -20,6 +20,8 @@ import collection.breakOut
 import language.implicitConversions
 
 object AppBundlePlugin extends Plugin {
+  import PList._
+
   //  // What the *!&?
   //  private implicit def wrapTaskKey[T](key: TaskKey[T]): WrappedTaskKey[T] = WrappedTaskKey(key)
   //  private final case class WrappedTaskKey[A](key: TaskKey[A]) {
@@ -138,64 +140,6 @@ object AppBundlePlugin extends Plugin {
                               icon: Option[File] = scala.None, extensions: Seq[String] = Nil,
                               mimeTypes: Seq[String] = Nil, osTypes: Seq[String] = Nil,
                               isPackage: Boolean = false)
-  }
-
-  private final case class PList(dict: PListDict) {
-    def toXML =
-// <?xml version="1.0" encoding="UTF-8"?>
-// <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-{dict.toXML}
-</plist>
-
-    def write(w: Writer) {
-      xml.XML.write(w, node = toXML, enc = "UTF-8", xmlDecl = true, doctype = PListDocType)
-    }
-  }
-
-  private lazy val PListDocType = xml.dtd.DocType("plist", xml.dtd.PublicID("-//Apple//DTD PLIST 1.0//EN",
-    "http://www.apple.com/DTDs/PropertyList-1.0.dtd"), Nil)
-
-  private type PListDictEntries   = Map[String, PListValue]
-  private type PListArrayEntries  = Seq[PListValue]
-
-  private trait PListValueLow {
-    // implicit def fromArray[ A <% PListArray ]( a: A ) : PListValue = a: PListArray
-    implicit def fromValueSeq (seq: PListArrayEntries): PListArray = PListArray(seq)
-    implicit def fromStringSeq(seq: Seq[String])      : PListArray = PListArray(seq.map(PListString))
-  }
-
-  private object PListValue extends PListValueLow {
-    implicit def fromString(s: String): PListValue = PListString(s)
-    // implicit def fromDict[ A <% PListDict ]( a: A ) : PListValue = a: PListDict
-    implicit def fromValueMap (map: PListDictEntries)   : PListDict = PListDict(map)
-    implicit def fromStringMap(map: Map[String, String]): PListDict = PListDict(map.mapValues(PListString))
-  }
-
-  private sealed trait PListValue {
-    def toXML: xml.Node
-  }
-
-  private final case class PListString(value: String) extends PListValue {
-    def toXML = <string>{value}</string>
-  }
-
-  //   private object PListDict {
-  //      implicit def fromValueMap( map: PListDictEntries ) : PListDict = PListDict( map )
-  //      implicit def fromStringMap( map: Map[ String, String ]) : PListDict = PListDict( map.mapValues( PListString( _ )))
-  //   }
-  private final case class PListDict(map: PListDictEntries) extends PListValue {
-    def toXML = <dict>{map.map {
-        case (key, value) => <key>{key}</key> ++ value.toXML
-      }}</dict>
-  }
-
-  //   private object PListArray {
-  //      implicit def fromValueSeq( seq: PListArrayEntries ) : PListArray = PListArray( seq )
-  //      implicit def fromStringSeq( seq: Seq[ String ]) : PListArray = PListArray( seq.map( PListString( _ )))
-  //   }
-  private final case class PListArray(seq: PListArrayEntries) extends PListValue {
-    def toXML = <array>{seq.map(_.toXML)}</array>
   }
 
   private def appbundleTask(infos: appbundle.InfoSettings, java: appbundle.JavaSettings,
@@ -347,8 +291,8 @@ object AppBundlePlugin extends Plugin {
       CFBundleShortVersionString      -> version,
       CFBundleSignature               -> signature,
       CFBundleVersion                 -> iterVersion,
-      CFBundleAllowMixedLocalizations -> true.toString,
-      NSHighResolutionCapable         -> highResolution.toString,
+      CFBundleAllowMixedLocalizations -> true,
+      NSHighResolutionCapable         -> highResolution,
       BundleKey_Java                  -> jEntries
     )
 
