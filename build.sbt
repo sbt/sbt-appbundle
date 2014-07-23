@@ -4,11 +4,11 @@ name                   := "sbt-appbundle"
 
 organization           := "de.sciss"
 
-version                := "1.0.2"
+version                := "1.1.0-SNAPSHOT"
 
 scalaVersion in Global := "2.10.4"
 
-sbtVersion in Global   := "0.13.2"
+sbtVersion in Global   := "0.13.5"
 
 // crossScalaVersions := Seq("2.9.2", "2.9.1")
 
