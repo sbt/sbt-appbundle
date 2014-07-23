@@ -39,7 +39,7 @@ object AppBundlePlugin extends Plugin {
 
     val Config            = config("appbundle")
 
-    val appbundle         = TaskKey[Unit]("appbundle")
+    val appbundle         = TaskKey[File]("appbundle")
     val executable        = SettingKey[File]("executable", "Path to the java application stub executable") in Config
     val screenMenu        = SettingKey[Boolean]("screenMenu", "Whether to display the menu bar in the screen top") in Config
     val quartz            = SettingKey[Option[Boolean]]("quartz", "Whether to use the Apple Quartz renderer (true) or the default Java renderer") in Config
@@ -107,7 +107,7 @@ object AppBundlePlugin extends Plugin {
   }
 
   private def appbundleTask(infos: InfoSettings, java: JavaSettings,
-                            bundle: BundleSettings, streams: TaskStreams) {
+                            bundle: BundleSettings, streams: TaskStreams): File = {
     import streams.log
     import infos._
     import java._
@@ -273,6 +273,8 @@ object AppBundlePlugin extends Plugin {
 
     // ---- done ----
     log.info("Done bundling.")
+
+    path
   }
 
   def bundlePackageType = BundlePackageTypeAPPL
