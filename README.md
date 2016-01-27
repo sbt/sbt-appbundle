@@ -1,5 +1,7 @@
 # sbt-appbundle
 
+[![Join the chat at https://gitter.im/sbt/sbt-appbundle](https://badges.gitter.im/sbt/sbt-appbundle.svg)](https://gitter.im/sbt/sbt-appbundle?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 ## statement
 
 sbt-appbundle is a plugin for the simple-build-tool (sbt) that adds the `appbundle` task to create a standalone OS X application bundle.
