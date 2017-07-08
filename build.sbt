@@ -52,14 +52,3 @@ pomExtra <<= name { n =>
 // publishArtifact in (Compile, packageDoc) := false
 
 // publishArtifact in (Compile, packageSrc) := false
-
-// ---- ls.implicit.ly ----
-
-seq(lsSettings :_*)
-
-(LsKeys.tags   in LsKeys.lsync) := Seq("sbt", "plugin", "application-bundle", "os-x")
-
-(LsKeys.ghUser in LsKeys.lsync) := Some("sbt")
-
-(LsKeys.ghRepo in LsKeys.lsync) := Some(name.value)
-
